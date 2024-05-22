@@ -34,9 +34,27 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
 
 template <class T>
 void TrieStore::Put(std::string_view key, T value) {
+  // throw NotImplementedException("TrieStore::Put is not implemented.");
+
   // You will need to ensure there is only one writer at a time. Think of how you can achieve this.
   // The logic should be somehow similar to `TrieStore::Get`.
-  throw NotImplementedException("TrieStore::Put is not implemented.");
+
+  // Get write_lock_ to avoid being interrupted by other writers
+  std::lock_guard<std::mutex> w_guard{write_lock_};
+
+  // Get the root_ to maintain the current state of the trie 
+  Trie local_root;
+  {
+    std::lock_guard<std::mutex> guard{root_lock_};
+    local_root = root_;
+  }
+
+  // Put the new key-value pair and update the current root to modified version
+  auto new_root = local_root.Put(key, std::move(value));
+  {
+    std::lock_guard<std::mutex> r_guard{root_lock_};
+    root_ = new_root;
+  }
 }
 
 void TrieStore::Remove(std::string_view key) {
