@@ -1,20 +1,34 @@
 #include "primer/trie_store.h"
+#include <mutex>
+#include <optional>
 #include "common/exception.h"
+#include "primer/trie.h"
 
 namespace bustub {
 
 template <class T>
 auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
+  // throw NotImplementedException("TrieStore::Get is not implemented.");
+
   // Pseudo-code:
   // (1) Take the root lock, get the root, and release the root lock. Don't lookup the value in the
   //     trie while holding the root lock.
+  Trie cur_root;
+  { // scope for root_guard to guard the root_ from being modified
+    std::lock_guard<std::mutex> root_guard(root_lock_);
+    cur_root = root_;
+  }
 
-  
   // (2) Lookup the value in the trie.
+  auto val = cur_root.Get<T>(key);
+
   // (3) If the value is found, return a ValueGuard object that holds a reference to the value and the
   //     root. Otherwise, return std::nullopt.
-  // throw NotImplementedException("TrieStore::Get is not implemented.");
-
+  if(val != nullptr){
+    return ValueGuard<T>(cur_root, *val);
+  } else {
+    return std::nullopt;
+  }
 
 }
 
