@@ -24,10 +24,10 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
 
   // (3) If the value is found, return a ValueGuard object that holds a reference to the value and the
   //     root. Otherwise, return std::nullopt.
-  if (val != nullptr) {
-    return ValueGuard<T>(cur_root, *val);
-  } else {
+  if (val == nullptr) {
     return std::nullopt;
+  } else {
+    return ValueGuard<T>(cur_root, *val);
   }
 }
 
