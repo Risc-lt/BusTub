@@ -31,7 +31,7 @@ auto Trie::Get(std::string_view key) const -> const T * {
 
   // Cast the node to `TrieNodeWithValue<T> *` and return the value.
   auto val_node = std::dynamic_pointer_cast<const TrieNodeWithValue<T>>(node);
-  
+
   // Return nullptr if the type of the value is mismatched.
   return val_node ? val_node->value_.get() : nullptr;
 
@@ -40,10 +40,76 @@ auto Trie::Get(std::string_view key) const -> const T * {
 template <class T>
 auto Trie::Put(std::string_view key, T value) const -> Trie {
   // Note that `T` might be a non-copyable type. Always use `std::move` when creating `shared_ptr` on that value.
-  throw NotImplementedException("Trie::Put is not implemented.");
+  // throw NotImplementedException("Trie::Put is not implemented.");
 
   // You should walk through the trie and create new nodes if necessary. If the node corresponding to the key already
   // exists, you should create a new `TrieNodeWithValue`.
+
+  if (!root_) {
+    // Handle the empty trie case
+    std::shared_ptr<TrieNode> current_node =
+        std::make_shared<TrieNodeWithValue<T>>(std::make_shared<T>(std::move(value)));
+
+    for (auto it = key.rbegin(); it != key.rend(); ++it) {
+      auto new_node =
+          std::make_shared<TrieNode>(std::map<char, std::shared_ptr<const TrieNode>>({{*it, current_node}}));
+      current_node = std::move(new_node);
+    }
+    return Trie{current_node};
+  }
+
+  // Stack: store the nodes on the path to the key.
+  std::stack<std::shared_ptr<const TrieNode>> node_stack;
+
+  // Walk through the trie to find the node corresponding to the key.
+  auto node = root_;
+  auto it = key.begin();
+  while (it != key.end()) {
+    node_stack.push(node);
+    auto child = node->children_.find(*it);
+    if (child == node->children_.end()) {
+      break;
+    }
+    node = child->second;
+    ++it;
+  }
+
+  if (it == key.end()) {
+    // Handle the case when key is a substring of the prefix
+    std::shared_ptr<const TrieNode> current_node =
+        std::make_shared<const TrieNodeWithValue<T>>(node->children_, std::make_shared<T>(std::move(value)));
+
+    for (auto rit = key.rbegin(); rit != key.rend(); ++rit) {
+      auto new_parent = node_stack.top()->Clone();
+      new_parent->children_[*rit] = current_node;
+      node_stack.pop();
+      current_node = std::move(new_parent);
+    }
+
+    return Trie{current_node};
+  }
+
+  // Handle the case when prefix is a substring of the key
+  auto rit = key.rbegin();
+
+  std::shared_ptr<const TrieNode> current_node =
+      std::make_shared<const TrieNodeWithValue<T>>(std::make_shared<T>(std::move(value)));
+  while (std::distance(it, rit.base()) > 1) {
+    auto new_node = std::make_shared<TrieNode>(std::map<char, std::shared_ptr<const TrieNode>>({{*rit, current_node}}));
+    current_node = new_node;
+    rit++;
+  }
+
+  while (!node_stack.empty() && rit != key.rend()) {
+    auto old_parent = node_stack.top();
+    auto new_node = old_parent->Clone();
+    new_node->children_[*rit] = current_node;
+    rit++;
+    node_stack.pop();
+    current_node = std::move(new_node);
+  }
+
+  return Trie{current_node};
 }
 
 auto Trie::Remove(std::string_view key) const -> Trie {
