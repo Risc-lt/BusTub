@@ -34,8 +34,10 @@ auto Trie::Get(std::string_view key) const -> const T * {
   auto val_node = std::dynamic_pointer_cast<const TrieNodeWithValue<T>>(node);
 
   // Return nullptr if the type of the value is mismatched.
-  return val_node ? val_node->value_.get() : nullptr;
-
+  if(val_node)
+    return val_node->value_.get();
+  else
+    return nullptr;
 }
 
 template <class T>
