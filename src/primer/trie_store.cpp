@@ -14,7 +14,7 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
   // (1) Take the root lock, get the root, and release the root lock. Don't lookup the value in the
   //     trie while holding the root lock.
   Trie cur_root;
-  { // scope for root_guard to guard the root_ from being modified
+  {  // scope for root_guard to guard the root_ from being modified
     std::lock_guard<std::mutex> root_guard(root_lock_);
     cur_root = root_;
   }
@@ -24,12 +24,11 @@ auto TrieStore::Get(std::string_view key) -> std::optional<ValueGuard<T>> {
 
   // (3) If the value is found, return a ValueGuard object that holds a reference to the value and the
   //     root. Otherwise, return std::nullopt.
-  if(val != nullptr){
+  if (val != nullptr) {
     return ValueGuard<T>(cur_root, *val);
   } else {
     return std::nullopt;
   }
-
 }
 
 template <class T>
@@ -42,7 +41,7 @@ void TrieStore::Put(std::string_view key, T value) {
   // Get write_lock_ to avoid being interrupted by other writers
   std::lock_guard<std::mutex> w_guard{write_lock_};
 
-  // Get the root_ to maintain the current state of the trie 
+  // Get the root_ to maintain the current state of the trie
   Trie local_root;
   {
     std::lock_guard<std::mutex> guard{root_lock_};
@@ -62,11 +61,11 @@ void TrieStore::Remove(std::string_view key) {
 
   // You will need to ensure there is only one writer at a time. Think of how you can achieve this.
   // The logic should be somehow similar to `TrieStore::Get`.
-  
+
   // Get write_lock_ to avoid being interrupted by other writers
   std::lock_guard<std::mutex> w_guard{write_lock_};
 
-  // Get the root_ to maintain the current state of the trie 
+  // Get the root_ to maintain the current state of the trie
   Trie local_root;
   {
     std::lock_guard<std::mutex> guard{root_lock_};
