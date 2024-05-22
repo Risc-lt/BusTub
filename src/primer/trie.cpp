@@ -36,9 +36,8 @@ auto Trie::Get(std::string_view key) const -> const T * {
   // Return nullptr if the type of the value is mismatched.
   if (val_node) {
     return val_node->value_.get();
-  } else {
-    return nullptr;
   }
+  return nullptr;
 }
 
 template <class T>
