@@ -172,9 +172,8 @@ class LRUKReplacer {
 
 
  private:
-  // TODO(student): implement me! You can replace these member variables as you like.
-  // Remove maybe_unused if you start using them.
-  std::unordered_map<frame_id_t, LRUKNode> node_store_;
+  // Both evictable and non-evictable frames are stored in the node store
+  [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
 
   // Liked list for nodes with less than k history
   std::shared_ptr<LRUKNode> less_than_k_head_;

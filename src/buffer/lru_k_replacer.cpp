@@ -44,44 +44,47 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
     // Check if the replacer is empty
     if(replacer_size_ == 0) {
-        latch_.unlock();
         return false;
     }
 
     // Find the frame with the maximum backward k-distance
     // If there exists +inf, return it
     if(less_than_k_head_->next_ != less_than_k_tail_) {
-        // Get the frame id
-        *frame_id = less_than_k_head_->next_->fid_;
+        for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
+            if(it->is_evictable_) {
+                // Get the frame id
+                *frame_id = it->fid_;
 
-        // Remove the frame from the list
-        less_than_k_head_->next_->next_->prev_ = less_than_k_head_;
-        less_than_k_head_->next_ = less_than_k_head_->next_->next_;
+                // Remove the frame from the list
+                it->next_->prev_ = it->prev_;
+                it->prev_->next_ = it->next_;
 
-        // Decrement the size of the replacer
-        replacer_size_--;
+                // Decrement the size of the replacer
+                replacer_size_--;
 
-        // Unlock the latch
-        latch_.unlock();
-        return true;
+                return true;
+            }
+        }
     }
 
     // If there is no +inf, return the frame with the maximum backward k-distance
     if(!greater_than_k_set_.empty()) {
-        // Get the frame id
-        *frame_id = (*greater_than_k_set_.begin())->fid_;
+        for(auto it = greater_than_k_set_.begin(); it != greater_than_k_set_.end(); it++) {
+            if((*it)->is_evictable_) {
+                // Get the frame id
+                *frame_id = (*it)->fid_;
 
-        // Remove the frame from the set
-        greater_than_k_set_.erase(greater_than_k_set_.begin());
+                // Remove the frame from the set
+                greater_than_k_set_.erase(it);
 
-        // Decrement the size of the replacer
-        replacer_size_--;
+                // Decrement the size of the replacer
+                replacer_size_--;
 
-        return true;
+                return true;
+            }
+        }
     }
 
-    // Unlock the latch
-    latch_.unlock();
     return false;
 }
 
@@ -163,7 +166,56 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
     throw Exception(ExceptionType::INVALID, "Frame not found");
 }
 
-void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
+void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
+    // Lock the latch
+    std::lock_guard<std::mutex> lock(latch_);
+
+    // Check if the frame is in the replacer
+    if(!CheckExist(frame_id)) {
+        throw Exception(ExceptionType::INVALID, "Frame not found");
+    }
+
+    // Get the node from the linked list
+    for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
+        if(it->fid_ == frame_id) {
+            // Check if the frame is evictable
+            if(set_evictable) {
+                // Check if the history of the frame is less than k
+                if(it->history_.size() > k_) {
+                    // Insert the frame to the set
+                    greater_than_k_set_.insert(it);
+                }
+            } else {
+                // Remove the frame from the set
+                greater_than_k_set_.erase(it);
+            }
+
+            return;
+        }
+    }
+
+    // Get the node from the set
+    for(const auto & it : greater_than_k_set_) {
+        if(it->fid_ == frame_id) {
+            // Check if the frame is evictable
+            if(set_evictable) {
+                // Check if the history of the frame is less than k
+                if(it->history_.size() > k_) {
+                    // Insert the frame to the set
+                    greater_than_k_set_.insert(it);
+                }
+            } else {
+                // Remove the frame from the set
+                greater_than_k_set_.erase(it);
+            }
+
+            return;
+        }
+    }
+
+    // If the frame is not found, throw an exception
+    throw Exception(ExceptionType::INVALID, "Frame not found");
+}
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {}
 
