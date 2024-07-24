@@ -59,9 +59,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
                 it->next_->prev_ = it->prev_;
                 it->prev_->next_ = it->next_;
 
-                // Decrement the size of the replacer
-                replacer_size_--;
-
                 return true;
             }
         }
@@ -76,9 +73,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
                 // Remove the frame from the set
                 greater_than_k_set_.erase(it);
-
-                // Decrement the size of the replacer
-                replacer_size_--;
 
                 return true;
             }
@@ -128,8 +122,8 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
         less_than_k_tail_->prev_->next_ = new_node;
         less_than_k_tail_->prev_ = new_node;
 
-        // Increment the size of the replacer
-        replacer_size_++;
+        // Increase the current size
+        curr_size_++;
 
         return;
     }
@@ -180,14 +174,18 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
         if(it->fid_ == frame_id) {
             // Check if the frame is evictable
             if(set_evictable) {
-                // Check if the history of the frame is less than k
-                if(it->history_.size() > k_) {
-                    // Insert the frame to the set
-                    greater_than_k_set_.insert(it);
+                // Increase the size of the replacer if the pre statue is not evictable
+                if(!it->is_evictable_) {
+                    replacer_size_++;
                 }
+                it->is_evictable_ = true;  
             } else {
-                // Remove the frame from the set
-                greater_than_k_set_.erase(it);
+                // Check if the frame is evictable
+                if(it->is_evictable_) {
+                    // Decrease the size of the replacer
+                    replacer_size_--;
+                }
+                it->is_evictable_ = false;
             }
 
             return;
@@ -199,14 +197,19 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
         if(it->fid_ == frame_id) {
             // Check if the frame is evictable
             if(set_evictable) {
-                // Check if the history of the frame is less than k
-                if(it->history_.size() > k_) {
-                    // Insert the frame to the set
-                    greater_than_k_set_.insert(it);
+                // Increase the size of the replacer if the pre statue is not evictable
+                if(!it->is_evictable_) {
+                    replacer_size_++;
                 }
+                it->is_evictable_ = true;
+                
             } else {
-                // Remove the frame from the set
-                greater_than_k_set_.erase(it);
+                // Check if the frame is evictable
+                if(it->is_evictable_) {
+                    // Decrease the size of the replacer
+                    replacer_size_--;
+                }
+                it->is_evictable_ = false;
             }
 
             return;
@@ -219,6 +222,6 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {}
 
-auto LRUKReplacer::Size() -> size_t { return 0; }
+auto LRUKReplacer::Size() -> size_t { return replacer_size_; }
 
 }  // namespace bustub
