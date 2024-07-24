@@ -163,6 +163,14 @@ class LRUKReplacer {
    */
   auto Size() -> size_t;
 
+  /**
+   * @brief Check if the frame is in the replacer
+   * @param frame_id the frame id to check
+   * @return true if the frame is in the replacer, false otherwise
+   */
+  auto CheckExist(frame_id_t frame_id) -> bool;
+
+
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.

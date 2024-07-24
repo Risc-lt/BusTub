@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
+#include <algorithm>
 #include <mutex>
+#include "common/config.h"
 #include "common/exception.h"
 
 namespace bustub {
@@ -75,8 +77,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
         // Decrement the size of the replacer
         replacer_size_--;
 
-        // Unlock the latch
-        latch_.unlock();
         return true;
     }
 
@@ -85,7 +85,83 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     return false;
 }
 
-void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {}
+auto LRUKReplacer::CheckExist(frame_id_t frame_id) -> bool {
+    // Lock the latch
+    std::lock_guard<std::mutex> lock(latch_);
+
+    // Check if the frame is in the replacer
+    for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
+        if(it->fid_ == frame_id) {
+            return true;
+        }
+    }
+
+    // Check if the frame is in the set
+    return std::any_of(greater_than_k_set_.begin(), greater_than_k_set_.end(), [frame_id](auto node) { return node->fid_ == frame_id; });
+}
+
+
+void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
+    // Lock the latch
+    std::lock_guard<std::mutex> lock(latch_);
+
+    // Abort if frame_id is invalid
+    if(frame_id < 0 || frame_id > static_cast<frame_id_t>(replacer_size_)) {
+        throw Exception(ExceptionType::INVALID, "Frame id must be within 0 and replacer_size");
+    }
+
+    // Check if the frame is in the replacer
+    if(!CheckExist(frame_id)) {
+        // Create a new node
+        auto new_node = std::make_shared<LRUKNode>();
+        new_node->fid_ = frame_id;
+        new_node->history_.push_back(current_timestamp_);
+
+        current_timestamp_++;
+
+        // Add the frame to the linked list
+        new_node->prev_ = less_than_k_tail_->prev_;
+        new_node->next_ = less_than_k_tail_;
+        less_than_k_tail_->prev_->next_ = new_node;
+        less_than_k_tail_->prev_ = new_node;
+
+        // Increment the size of the replacer
+        replacer_size_++;
+
+        return;
+    }
+
+    // Get the node from the linked list
+    for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
+        if(it->fid_ == frame_id) {
+            // Update the history of the frame
+            it->history_.push_back(current_timestamp_);
+            current_timestamp_++;
+
+            // Check if the history of the frame is less than k
+            if(it->history_.size() > k_) {
+                // Insert the frame to the set
+                greater_than_k_set_.insert(it);
+            }
+
+            return;
+        }
+    }
+
+    // Get the node from the set
+    for(const auto & it : greater_than_k_set_) {
+        if(it->fid_ == frame_id) {
+            // Update the history of the frame
+            it->history_.push_back(current_timestamp_);
+            current_timestamp_++;
+
+            return;
+        }
+    }
+
+    // If the frame is not found, throw an exception
+    throw Exception(ExceptionType::INVALID, "Frame not found");
+}
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
 
