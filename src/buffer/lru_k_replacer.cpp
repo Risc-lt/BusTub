@@ -220,7 +220,42 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     throw Exception(ExceptionType::INVALID, "Frame not found");
 }
 
-void LRUKReplacer::Remove(frame_id_t frame_id) {}
+void LRUKReplacer::Remove(frame_id_t frame_id) {
+    // Lock the latch
+    std::lock_guard<std::mutex> lock(latch_);
+
+    // Check if the frame is in the replacer
+    if(!CheckExist(frame_id)) {
+        return;
+    }
+
+    // Get the node from the linked list
+    for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
+        if(it->fid_ == frame_id) {
+            // Remove the frame from the linked list
+            it->next_->prev_ = it->prev_;
+            it->prev_->next_ = it->next_;
+
+            // Decrease the size of the replacer
+            replacer_size_--;
+
+            return;
+        }
+    }
+
+    // Get the node from the set
+    for(const auto & it : greater_than_k_set_) {
+        if(it->fid_ == frame_id) {
+            // Remove the frame from the set
+            greater_than_k_set_.erase(it);
+
+            // Decrease the size of the replacer
+            replacer_size_--;
+
+            return;
+        }
+    }
+}
 
 auto LRUKReplacer::Size() -> size_t { return replacer_size_; }
 
