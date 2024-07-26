@@ -43,7 +43,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     std::lock_guard<std::mutex> lock(latch_);
 
     // Check if the replacer is empty
-    if(replacer_size_ == 0) {
+    if(curr_size_ == 0) {
         return false;
     }
 
@@ -59,6 +59,8 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
                 it->next_->prev_ = it->prev_;
                 it->prev_->next_ = it->next_;
 
+                // Decrease the size of the replacer
+                curr_size_--;
                 return true;
             }
         }
@@ -74,6 +76,8 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
                 // Remove the frame from the set
                 greater_than_k_set_.erase(it);
 
+                // Decrease the size of the replacer
+                curr_size_--;
                 return true;
             }
         }
@@ -122,8 +126,8 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
         less_than_k_tail_->prev_->next_ = new_node;
         less_than_k_tail_->prev_ = new_node;
 
-        // Increase the current size
-        curr_size_++;
+        // Increase the current size (initial state is inevictable, so no need to increase)
+        // curr_size_++;
 
         return;
     }
@@ -136,9 +140,22 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
             current_timestamp_++;
 
             // Check if the history of the frame is less than k
-            if(it->history_.size() > k_) {
+            if(it->history_.size() >= k_) {
                 // Insert the frame to the set
                 greater_than_k_set_.insert(it);
+
+                // Remove the frame from the linked list
+                it->next_->prev_ = it->prev_;
+                it->prev_->next_ = it->next_;
+            } else {
+                // Move the frame to the end of the linked list
+                it->next_->prev_ = it->prev_;
+                it->prev_->next_ = it->next_;
+
+                it->prev_ = less_than_k_tail_->prev_;
+                it->next_ = less_than_k_tail_;
+                less_than_k_tail_->prev_->next_ = it;
+                less_than_k_tail_->prev_ = it;
             }
 
             return;
@@ -176,14 +193,14 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
             if(set_evictable) {
                 // Increase the size of the replacer if the pre statue is not evictable
                 if(!it->is_evictable_) {
-                    replacer_size_++;
+                    curr_size_++;
                 }
                 it->is_evictable_ = true;  
             } else {
                 // Check if the frame is evictable
                 if(it->is_evictable_) {
                     // Decrease the size of the replacer
-                    replacer_size_--;
+                    curr_size_--;
                 }
                 it->is_evictable_ = false;
             }
@@ -199,7 +216,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
             if(set_evictable) {
                 // Increase the size of the replacer if the pre statue is not evictable
                 if(!it->is_evictable_) {
-                    replacer_size_++;
+                    curr_size_++;
                 }
                 it->is_evictable_ = true;
                 
@@ -207,7 +224,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
                 // Check if the frame is evictable
                 if(it->is_evictable_) {
                     // Decrease the size of the replacer
-                    replacer_size_--;
+                    curr_size_--;
                 }
                 it->is_evictable_ = false;
             }
@@ -237,7 +254,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
             it->prev_->next_ = it->next_;
 
             // Decrease the size of the replacer
-            replacer_size_--;
+            curr_size_--;
 
             return;
         }
@@ -250,13 +267,17 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
             greater_than_k_set_.erase(it);
 
             // Decrease the size of the replacer
-            replacer_size_--;
+            curr_size_--;
 
             return;
         }
     }
 }
 
-auto LRUKReplacer::Size() -> size_t { return replacer_size_; }
+auto LRUKReplacer::Size() -> size_t { 
+    std::lock_guard<std::mutex> lock(latch_);
+
+    return curr_size_; 
+}
 
 }  // namespace bustub
