@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <limits>
 #include <list>
 #include <set>
@@ -43,12 +44,25 @@ class LRUKNode {
   std::shared_ptr<LRUKNode> next_{nullptr};
 
   LRUKNode() = default;
+
+  auto GetBackwardKDistance() -> size_t {
+    if (history_.size() < k_) {
+      return std::numeric_limits<size_t>::max();
+    }
+    
+    auto it = history_.rbegin();
+    for (size_t i = 0; i < k_; i++) {
+      it++;
+    }
+
+    return *it;
+  }
 };
 
 // Custom comparator for the set
 struct MyCompare {
   auto operator()(const std::shared_ptr<LRUKNode> &lhs, const std::shared_ptr<LRUKNode> &rhs) const -> bool {
-    return lhs->history_.front() < rhs->history_.front();
+    return lhs->GetBackwardKDistance() < rhs->GetBackwardKDistance();
   }
 };
 
@@ -176,8 +190,8 @@ class LRUKReplacer {
   [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
 
   // Liked list for nodes with less than k history
-  std::shared_ptr<LRUKNode> less_than_k_head_;
-  std::shared_ptr<LRUKNode> less_than_k_tail_;
+  std::shared_ptr<LRUKNode> less_than_k_head_{nullptr};
+  std::shared_ptr<LRUKNode> less_than_k_tail_{nullptr};
 
   // RB-Tree for nodes with greater than k history
   std::set<std::shared_ptr<LRUKNode>, MyCompare> greater_than_k_set_;

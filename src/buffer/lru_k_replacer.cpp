@@ -114,17 +114,17 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
     // Check if the frame is in the replacer
     if(!CheckExist(frame_id)) {
         // Create a new node
-        auto new_node = std::make_shared<LRUKNode>();
-        new_node->fid_ = frame_id;
-        new_node->history_.push_back(current_timestamp_);
+        auto new_frame = std::make_shared<LRUKNode>();
+        new_frame->fid_ = frame_id;
+        new_frame->history_.push_back(current_timestamp_);
 
         current_timestamp_++;
 
         // Add the frame to the linked list
-        new_node->prev_ = less_than_k_tail_->prev_;
-        new_node->next_ = less_than_k_tail_;
-        less_than_k_tail_->prev_->next_ = new_node;
-        less_than_k_tail_->prev_ = new_node;
+        new_frame->prev_ = less_than_k_tail_->prev_;
+        new_frame->next_ = less_than_k_tail_;
+        less_than_k_tail_->prev_->next_ = new_frame;
+        less_than_k_tail_->prev_ = new_frame;
 
         // Increase the current size (initial state is inevictable, so no need to increase)
         // curr_size_++;
@@ -165,8 +165,19 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
     // Get the node from the set
     for(const auto & it : greater_than_k_set_) {
         if(it->fid_ == frame_id) {
-            // Update the history of the frame
-            it->history_.push_back(current_timestamp_);
+            // Copy the target frame
+            auto new_frame = std::make_shared<LRUKNode>();
+            new_frame->fid_ = frame_id;
+            new_frame->history_ = it->history_;
+            new_frame->history_.push_back(current_timestamp_);
+
+            // Remove the old frame from the set 
+            greater_than_k_set_.erase(it);
+
+            // Insert the frame to the set
+            greater_than_k_set_.insert(new_frame);
+
+            // Update the timestamp
             current_timestamp_++;
 
             return;
