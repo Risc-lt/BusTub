@@ -84,7 +84,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
 auto LRUKReplacer::CheckExist(frame_id_t frame_id) -> bool {
     // Lock the latch
-    std::lock_guard<std::mutex> lock(latch_);
+    // std::lock_guard<std::mutex> lock(latch_);
 
     // Check if the frame is in the replacer
     for(auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
