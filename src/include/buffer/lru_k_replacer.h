@@ -35,8 +35,8 @@ class LRUKNode {
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
   std::list<size_t> history_; 
-  size_t k_;
-  frame_id_t fid_;
+  size_t k_{0};
+  frame_id_t fid_{-1};
   bool is_evictable_{false};
 
   // Pointers to the previous and next nodes in the list
@@ -44,6 +44,8 @@ class LRUKNode {
   std::shared_ptr<LRUKNode> next_{nullptr};
 
   LRUKNode() = default;
+
+  ~LRUKNode() = default;
 
   auto GetBackwardKDistance() -> size_t {
     if (history_.size() < k_) {
@@ -187,7 +189,7 @@ class LRUKReplacer {
 
  private:
   // Both evictable and non-evictable frames are stored in the node store
-  [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
+  // [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
 
   // Liked list for nodes with less than k history
   std::shared_ptr<LRUKNode> less_than_k_head_{nullptr};
