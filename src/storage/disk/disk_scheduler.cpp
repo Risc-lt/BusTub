@@ -34,8 +34,28 @@ DiskScheduler::~DiskScheduler() {
   }
 }
 
-void DiskScheduler::Schedule(DiskRequest r) {}
+void DiskScheduler::Schedule(DiskRequest r) { return request_queue_.Put(std::move(r)); }
 
-void DiskScheduler::StartWorkerThread() {}
+void DiskScheduler::StartWorkerThread() {
+  while(true) {
+    // Get a request from the queue
+    std::optional r{request_queue_.Get()};
+
+    // If the request is empty, exit the loop
+    if (!r.has_value()) {
+      return;
+    }
+
+    // Process the request
+    if (r.value().is_write_) {
+      disk_manager_->WritePage(r.value().page_id_, r.value().data_);
+    } else {
+      disk_manager_->ReadPage(r.value().page_id_, r.value().data_);
+    }
+
+    // Signal the request issuer that the request has been completed
+    r.value().callback_.set_value(true);
+  }
+}
 
 }  // namespace bustub
