@@ -35,9 +35,6 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 BufferPoolManager::~BufferPoolManager() { 
   delete[] pages_; 
 
-  // Flush all the pages in the buffer pool
-  FlushAllPages();
-
   // Delete the disk scheduler
   disk_scheduler_.reset();
 
