@@ -97,7 +97,13 @@ class LRUKReplacer {
    *
    * @brief Destroys the LRUReplacer.
    */
-  ~LRUKReplacer() = default;
+  ~LRUKReplacer() {
+    less_than_k_head_->next_ = nullptr;
+    less_than_k_tail_->prev_ = nullptr;
+    less_than_k_head_ = nullptr;
+    less_than_k_tail_ = nullptr;
+    greater_than_k_set_.clear();
+  }
 
   /**
    * TODO(P1): Add implementation
