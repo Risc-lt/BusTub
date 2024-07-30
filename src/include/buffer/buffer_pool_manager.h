@@ -207,6 +207,11 @@ class BufferPoolManager {
     // This is a no-nop right now without a more complex data structure to track deallocated pages
   }
 
-  // TODO(student): You may add additional private members and helper functions
+  /**
+   * @brief Set the page id of a frame in the buffer pool. Caller should acquire the latch before calling this function.
+   * @param frame_id id of the frame to set the page id
+   * @param page_id id of the page to set
+   */
+  void SetPage(frame_id_t frame_id, page_id_t page_id);
 };
 }  // namespace bustub
