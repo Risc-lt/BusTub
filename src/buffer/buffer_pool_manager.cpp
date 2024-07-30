@@ -193,7 +193,33 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   return true;
 }
 
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { 
+  // Lock the latch
+  std::lock_guard<std::mutex> lock(latch_);
+
+  // Check if the page is in the buffer pool
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return false;
+  }
+
+  // Get the frame_id of the page
+  frame_id_t frame_id = page_table_[page_id];
+
+  // Flush a page to disk, regardless of the dirty flag.
+  DiskRequest request{.is_write_ = true, .data_ = pages_[frame_id].GetData(), .page_id_ = page_id};
+
+  // Create a promise to signal the completion of the request
+  auto feedback{request.callback_.get_future()};
+  // Schedule the request
+  disk_scheduler_->Schedule(std::move(request));
+  // Wait for the request to complete
+  feedback.get();
+
+  // Unset the dirty flag of the page after flushing
+  pages_[frame_id].is_dirty_ = false;
+
+  return true;
+}
 
 void BufferPoolManager::FlushAllPages() {}
 
