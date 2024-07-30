@@ -163,7 +163,34 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
-  return false;
+  // Lock the latch
+  std::lock_guard<std::mutex> lock(latch_);
+
+  // Check if the page is in the buffer pool
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return false;
+  }
+
+  // Get the frame_id of the page
+  frame_id_t frame_id = page_table_[page_id];
+
+  // Check if the page is already unpinned
+  if (pages_[frame_id].pin_count_ <= 0) {
+    return false;
+  }
+
+  // Decrement the pin count
+  pages_[frame_id].pin_count_--;
+
+  // Set the dirty flag
+  pages_[frame_id].is_dirty_ = is_dirty;
+
+  // If the pin count reaches 0, the frame should be evictable by the replacer
+  if (pages_[frame_id].pin_count_ == 0) {
+    replacer_ -> SetEvictable(frame_id, true);
+  }
+
+  return true;
 }
 
 auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
