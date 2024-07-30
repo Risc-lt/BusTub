@@ -15,9 +15,9 @@
 #include <cstddef>
 #include <limits>
 #include <list>
-#include <set>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <shared_mutex>
 #include <unordered_map>
 #include <vector>
@@ -34,7 +34,7 @@ class LRUKNode {
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
-  std::list<size_t> history_; 
+  std::list<size_t> history_;
   size_t k_{0};
   frame_id_t fid_{-1};
   bool is_evictable_{false};
@@ -51,7 +51,7 @@ class LRUKNode {
     if (history_.size() < k_) {
       return std::numeric_limits<size_t>::max();
     }
-    
+
     auto it = history_.rbegin();
     for (size_t i = 0; i < k_; i++) {
       it++;
@@ -186,7 +186,6 @@ class LRUKReplacer {
    */
   auto CheckExist(frame_id_t frame_id) -> bool;
 
-
  private:
   // Both evictable and non-evictable frames are stored in the node store
   // [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
@@ -205,6 +204,5 @@ class LRUKReplacer {
   size_t k_;
   std::mutex latch_;
 };
-
 
 }  // namespace bustub

@@ -44,7 +44,7 @@ void BufferPoolManager::SetPage(frame_id_t frame_id, page_id_t page_id) {
   page->pin_count_ = 1;
 }
 
-auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * { 
+auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // Lock the latch
   std::lock_guard<std::mutex> lock(latch_);
 
@@ -85,8 +85,8 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   page_table_[new_page_id] = empty_frame_id;
 
   // Pin the frame in replacer
-  replacer_ -> RecordAccess(empty_frame_id);
-  replacer_ -> SetEvictable(empty_frame_id, false);
+  replacer_->RecordAccess(empty_frame_id);
+  replacer_->SetEvictable(empty_frame_id, false);
 
   // Reset the memory and metadata for the new page
   SetPage(empty_frame_id, new_page_id);
@@ -103,12 +103,12 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   if (page_table_.find(page_id) != page_table_.end()) {
     // If the page is in the buffer pool, we can return it
     frame_id_t frame_id = page_table_[page_id];
-    replacer_ -> RecordAccess(frame_id);
-    replacer_ -> SetEvictable(frame_id, false);
+    replacer_->RecordAccess(frame_id);
+    replacer_->SetEvictable(frame_id, false);
     pages_[frame_id].pin_count_++;
     return &pages_[frame_id];
-  }      
-    
+  }
+
   // If the page is not in the buffer pool, we need to fetch it from the disk
   frame_id_t empty_frame_id{0};
 
@@ -156,8 +156,8 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   SetPage(empty_frame_id, page_id);
 
   // Pin the frame in replacer
-  replacer_ -> RecordAccess(empty_frame_id);
-  replacer_ -> SetEvictable(empty_frame_id, false);
+  replacer_->RecordAccess(empty_frame_id);
+  replacer_->SetEvictable(empty_frame_id, false);
 
   return &pages_[empty_frame_id];
 }
@@ -187,13 +187,13 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
 
   // If the pin count reaches 0, the frame should be evictable by the replacer
   if (pages_[frame_id].pin_count_ == 0) {
-    replacer_ -> SetEvictable(frame_id, true);
+    replacer_->SetEvictable(frame_id, true);
   }
 
   return true;
 }
 
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { 
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   // Lock the latch
   std::lock_guard<std::mutex> lock(latch_);
 
@@ -275,12 +275,12 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   return true;
 }
 
-auto BufferPoolManager::AllocatePage() -> page_id_t { 
-  if(next_page_id_ == INVALID_PAGE_ID) {
+auto BufferPoolManager::AllocatePage() -> page_id_t {
+  if (next_page_id_ == INVALID_PAGE_ID) {
     throw Exception("All page slots have been allocated.");
   }
 
-  return next_page_id_++; 
+  return next_page_id_++;
 }
 
 auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
