@@ -275,7 +275,13 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   return true;
 }
 
-auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
+auto BufferPoolManager::AllocatePage() -> page_id_t { 
+  if(next_page_id_ == INVALID_PAGE_ID) {
+    throw Exception("All page slots have been allocated.");
+  }
+
+  return next_page_id_++; 
+}
 
 auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
 
