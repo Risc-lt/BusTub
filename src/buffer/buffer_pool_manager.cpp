@@ -32,7 +32,28 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
   }
 }
 
-BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
+BufferPoolManager::~BufferPoolManager() { 
+  delete[] pages_; 
+
+  // Flush all the pages in the buffer pool
+  FlushAllPages();
+
+  // Delete the disk scheduler
+  disk_scheduler_.reset();
+
+  // Delete the log manager 
+  delete log_manager_;
+
+  // Delete the replacer
+  replacer_.reset();
+
+  // Delete the pagetable
+  page_table_.clear();
+
+  // Delete the free list
+  free_list_.clear();
+  
+}
 
 void BufferPoolManager::SetPage(frame_id_t frame_id, page_id_t page_id) {
   // Get the page
