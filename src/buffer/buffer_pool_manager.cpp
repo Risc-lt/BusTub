@@ -221,9 +221,59 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   return true;
 }
 
-void BufferPoolManager::FlushAllPages() {}
+void BufferPoolManager::FlushAllPages() {
+  // Lock the latch
+  std::lock_guard<std::mutex> lock(latch_);
 
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+  // Iterate over all the pages in the buffer pool
+  for (auto &entry : page_table_) {
+    // Get the page_id and frame_id of the page
+    page_id_t page_id = entry.first;
+
+    // Flush the page to disk
+    FlushPage(page_id);
+  }
+}
+
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  // Lock the latch
+  std::lock_guard<std::mutex> lock(latch_);
+
+  // Check if the page is in the buffer pool
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return true;
+  }
+
+  // Check if the page is evictable
+  frame_id_t frame_id = page_table_[page_id];
+  if (pages_[frame_id].pin_count_ > 0) {
+    return false;
+  }
+
+  // If the page is dirty, we need to write it back to the disk
+  if (pages_[frame_id].IsDirty()) {
+    // Wrap the page in a DiskRequest
+    DiskRequest request{.is_write_ = true, .data_ = pages_[frame_id].GetData(), .page_id_ = page_id};
+
+    // Create a promise to signal the completion of the request
+    auto feedback{request.callback_.get_future()};
+    // Schedule the request
+    disk_scheduler_->Schedule(std::move(request));
+    // Wait for the request to complete
+    feedback.get();
+  }
+
+  // Remove the page from the page table
+  page_table_.erase(page_id);
+
+  // Add the frame to the free list
+  free_list_.push_back(frame_id);
+
+  SetPage(frame_id, INVALID_PAGE_ID);
+  DeallocatePage(page_id);
+
+  return true;
+}
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
