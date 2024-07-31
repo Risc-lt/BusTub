@@ -33,6 +33,7 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 }
 
 BufferPoolManager::~BufferPoolManager() { 
+  // Delete the pages
   delete[] pages_; 
 
   // Delete the disk scheduler

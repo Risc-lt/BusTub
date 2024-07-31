@@ -98,10 +98,19 @@ class LRUKReplacer {
    * @brief Destroys the LRUReplacer.
    */
   ~LRUKReplacer() {
-    less_than_k_head_->next_ = nullptr;
-    less_than_k_tail_->prev_ = nullptr;
+    // Clear the linked list
+    while(less_than_k_head_ != nullptr) {
+      auto temp = less_than_k_head_;
+      less_than_k_head_ = less_than_k_head_->next_;
+      temp->prev_ = nullptr;
+      temp->next_ = nullptr;
+    }
+
+    // Set the pointers to null
     less_than_k_head_ = nullptr;
     less_than_k_tail_ = nullptr;
+
+    // Clear the set
     greater_than_k_set_.clear();
   }
 
