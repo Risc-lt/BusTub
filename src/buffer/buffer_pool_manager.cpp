@@ -32,14 +32,14 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
   }
 }
 
-BufferPoolManager::~BufferPoolManager() { 
+BufferPoolManager::~BufferPoolManager() {
   // Delete the pages
-  delete[] pages_; 
+  delete[] pages_;
 
   // Delete the disk scheduler
   disk_scheduler_.reset();
 
-  // Delete the log manager 
+  // Delete the log manager
   delete log_manager_;
 
   // Delete the replacer
@@ -50,7 +50,6 @@ BufferPoolManager::~BufferPoolManager() {
 
   // Delete the free list
   free_list_.clear();
-  
 }
 
 void BufferPoolManager::SetPage(frame_id_t frame_id, page_id_t page_id) {

@@ -99,7 +99,7 @@ class LRUKReplacer {
    */
   ~LRUKReplacer() {
     // Clear the linked list
-    while(less_than_k_head_ != nullptr) {
+    while (less_than_k_head_ != nullptr) {
       auto temp = less_than_k_head_;
       less_than_k_head_ = less_than_k_head_->next_;
       temp->prev_ = nullptr;
