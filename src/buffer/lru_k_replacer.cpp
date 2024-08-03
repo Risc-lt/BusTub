@@ -168,7 +168,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
   }
 
   // Get the node from the set
-  for (const auto &it : greater_than_k_set_) {
+  for (auto &it : greater_than_k_set_) {
     if (it->fid_ == frame_id) {
       // Copy the target frame
       auto new_frame = std::make_shared<LRUKNode>();
@@ -226,7 +226,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
 
   // Get the node from the set
-  for (const auto &it : greater_than_k_set_) {
+  for (auto &it : greater_than_k_set_) {
     if (it->fid_ == frame_id) {
       // Check if the frame is evictable
       if (set_evictable) {
@@ -277,7 +277,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   }
 
   // Get the node from the set
-  for (const auto &it : greater_than_k_set_) {
+  for (auto &it : greater_than_k_set_) {
     if (it->fid_ == frame_id && it->is_evictable_) {
       // Remove the frame from the set
       greater_than_k_set_.erase(it);
