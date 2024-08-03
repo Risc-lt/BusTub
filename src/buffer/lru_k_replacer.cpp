@@ -49,21 +49,31 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   // Find the frame with the maximum backward k-distance
   // If there exists +inf, return it
   if (less_than_k_head_->next_ != less_than_k_tail_) {
+    bool has_evictable = false;
+    auto target = less_than_k_head_->next_;
+    size_t least_recently_timestamp = std::numeric_limits<size_t>::max();
+
     for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-      if (it->is_evictable_) {
-        // Get the frame id
-        *frame_id = it->fid_;
-
-        // Remove the frame from the list
-        it->next_->prev_ = it->prev_;
-        it->prev_->next_ = it->next_;
-        it->prev_ = nullptr;
-        it->next_ = nullptr;
-
-        // Decrease the size of the replacer
-        curr_size_--;
-        return true;
+      if (it->is_evictable_ && it->history_.front() < least_recently_timestamp) {
+        // Get the frame id and timestamp
+        target = it;
+        has_evictable = true;
+        least_recently_timestamp = it->history_.front();
       }
+    }
+
+    if (has_evictable) {
+      *frame_id = target->fid_;
+
+      // Remove the frame from the list
+      target->next_->prev_ = target->prev_;
+      target->prev_->next_ = target->next_;
+      target->prev_ = nullptr;
+      target->next_ = nullptr;
+
+      // Decrease the size of the replacer
+      curr_size_--;
+      return true;
     }
   }
 
@@ -268,6 +278,8 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
       // Remove the frame from the linked list
       it->next_->prev_ = it->prev_;
       it->prev_->next_ = it->next_;
+      it->prev_ = nullptr;
+      it->next_ = nullptr;
 
       // Decrease the size of the replacer
       curr_size_--;
