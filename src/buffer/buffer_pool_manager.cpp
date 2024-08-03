@@ -201,7 +201,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   pages_[frame_id].pin_count_--;
 
   // Set the dirty flag
-  pages_[frame_id].is_dirty_ = is_dirty;
+  pages_[frame_id].is_dirty_ |= is_dirty;
 
   // If the pin count reaches 0, the frame should be evictable by the replacer
   if (pages_[frame_id].pin_count_ == 0) {

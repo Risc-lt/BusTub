@@ -57,6 +57,8 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
         // Remove the frame from the list
         it->next_->prev_ = it->prev_;
         it->prev_->next_ = it->next_;
+        it->prev_ = nullptr;
+        it->next_ = nullptr;
 
         // Decrease the size of the replacer
         curr_size_--;
