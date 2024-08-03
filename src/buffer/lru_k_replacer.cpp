@@ -140,12 +140,16 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
 
       // Check if the history of the frame is less than k
       if (it->history_.size() >= k_) {
-        // Insert the frame to the set
-        greater_than_k_set_.insert(it);
-
         // Remove the frame from the linked list
         it->next_->prev_ = it->prev_;
         it->prev_->next_ = it->next_;
+
+        // Set the old pointer to nullptr
+        it->prev_ = nullptr;
+        it->next_ = nullptr;
+
+        // Insert the frame to the set
+        greater_than_k_set_.insert(std::move(it));
       } else {
         // Move the frame to the end of the linked list
         it->next_->prev_ = it->prev_;
@@ -174,7 +178,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
       greater_than_k_set_.erase(it);
 
       // Insert the frame to the set
-      greater_than_k_set_.insert(new_frame);
+      greater_than_k_set_.insert(std::move(new_frame));
 
       // Update the timestamp
       current_timestamp_++;
@@ -258,7 +262,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 
   // Get the node from the linked list
   for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-    if (it->fid_ == frame_id) {
+    if (it->fid_ == frame_id && it->is_evictable_) {
       // Remove the frame from the linked list
       it->next_->prev_ = it->prev_;
       it->prev_->next_ = it->next_;
@@ -272,7 +276,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
 
   // Get the node from the set
   for (const auto &it : greater_than_k_set_) {
-    if (it->fid_ == frame_id) {
+    if (it->fid_ == frame_id && it->is_evictable_) {
       // Remove the frame from the set
       greater_than_k_set_.erase(it);
 
