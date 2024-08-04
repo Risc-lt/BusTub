@@ -61,10 +61,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   // If there exists a frame that has been accessed less than k times, evict the one with least recent timestamp.
   if (fid != -1) {
     *frame_id = fid;
-  } else if (fkthid != -1) { // If all frames have been accessed more than k times, evict the one with least recent kth timestamp.
+  } else if (fkthid != -1) {  // If all frames have been accessed more than k times, evict the one with least recent kth
+                              // timestamp.
     *frame_id = fkthid;
   } else {
-    return false; // If all frames are not evictable, return false.
+    return false;  // If all frames are not evictable, return false.
   }
 
   // Remove the frame_id from the node_store_.
