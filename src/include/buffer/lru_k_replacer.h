@@ -12,13 +12,9 @@
 
 #pragma once
 
-#include <cstddef>
 #include <limits>
 #include <list>
-#include <memory>
 #include <mutex>  // NOLINT
-#include <set>
-#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -31,41 +27,22 @@ enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {
  public:
-  /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
-  // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
+  // Constructor
+  LRUKNode(size_t k, frame_id_t frame_id) : k_{k}, fid_{frame_id} {}
 
+  // Update the access time of the page
+  void UpdateAccessTime(size_t current_time) {
+    history_.push_front(current_time);
+    if (history_.size() > k_) {
+      history_.pop_back();
+    }
+  }
+
+  /** History of last seen K timestamps of this page. Least recent timestamp stored in back. */
   std::list<size_t> history_;
-  size_t k_{0};
-  frame_id_t fid_{-1};
+  size_t k_;
+  frame_id_t fid_;
   bool is_evictable_{false};
-
-  // Pointers to the previous and next nodes in the list
-  std::shared_ptr<LRUKNode> prev_{nullptr};
-  std::shared_ptr<LRUKNode> next_{nullptr};
-
-  LRUKNode() = default;
-
-  ~LRUKNode() = default;
-
-  auto GetBackwardKDistance() -> size_t {
-    if (history_.size() < k_) {
-      return std::numeric_limits<size_t>::max();
-    }
-
-    auto it = history_.rbegin();
-    for (size_t i = 0; i < k_; i++) {
-      it++;
-    }
-
-    return *it;
-  }
-};
-
-// Custom comparator for the set
-struct MyCompare {
-  auto operator()(const std::shared_ptr<LRUKNode> &lhs, const std::shared_ptr<LRUKNode> &rhs) const -> bool {
-    return lhs->GetBackwardKDistance() < rhs->GetBackwardKDistance();
-  }
 };
 
 /**
@@ -97,22 +74,7 @@ class LRUKReplacer {
    *
    * @brief Destroys the LRUReplacer.
    */
-  ~LRUKReplacer() {
-    // Clear the linked list
-    while (less_than_k_head_ != nullptr) {
-      auto temp = less_than_k_head_;
-      less_than_k_head_ = less_than_k_head_->next_;
-      temp->prev_ = nullptr;
-      temp->next_ = nullptr;
-    }
-
-    // Set the pointers to null
-    less_than_k_head_ = nullptr;
-    less_than_k_tail_ = nullptr;
-
-    // Clear the set
-    greater_than_k_set_.clear();
-  }
+  ~LRUKReplacer() = default;
 
   /**
    * TODO(P1): Add implementation
@@ -194,27 +156,12 @@ class LRUKReplacer {
    */
   auto Size() -> size_t;
 
-  /**
-   * @brief Check if the frame is in the replacer
-   * @param frame_id the frame id to check
-   * @return true if the frame is in the replacer, false otherwise
-   */
-  auto CheckExist(frame_id_t frame_id) -> bool;
-
  private:
-  // Both evictable and non-evictable frames are stored in the node store
-  // [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
-
-  // Liked list for nodes with less than k history
-  std::shared_ptr<LRUKNode> less_than_k_head_{nullptr};
-  std::shared_ptr<LRUKNode> less_than_k_tail_{nullptr};
-
-  // RB-Tree for nodes with greater than k history
-  std::set<std::shared_ptr<LRUKNode>, MyCompare> greater_than_k_set_;
+  // Hash table to store the frame id and its corresponding node
+  std::unordered_map<frame_id_t, LRUKNode> node_store_;
 
   size_t current_timestamp_{0};
   size_t curr_size_{0};
-
   size_t replacer_size_;
   size_t k_;
   std::mutex latch_;

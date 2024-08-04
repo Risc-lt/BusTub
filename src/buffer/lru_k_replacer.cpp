@@ -1,3 +1,4 @@
+
 //===----------------------------------------------------------------------===//
 //
 //                         BusTub
@@ -11,300 +12,149 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
-#include <algorithm>
-#include <mutex>
-#include "common/config.h"
 #include "common/exception.h"
+#include "fmt/format.h"
 
 namespace bustub {
 
-LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
-  // Check if k and num_frames are valid
-  if (k_ < 1) {
-    throw Exception(ExceptionType::INVALID, "k must be greater than 0");
-  }
+size_t times{0};
 
-  if (replacer_size_ < 0) {
-    throw Exception(ExceptionType::INVALID, "replacer size must be greater than 0");
-  }
-
-  // Initialize the head and tail nodes
-  less_than_k_head_ = std::make_shared<LRUKNode>();
-  less_than_k_tail_ = std::make_shared<LRUKNode>();
-
-  // Set the pointers of the head and tail nodes
-  less_than_k_head_->next_ = less_than_k_tail_;
-  less_than_k_tail_->prev_ = less_than_k_head_;
-}
+LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
-  // Lock the latch
-  std::lock_guard<std::mutex> lock(latch_);
+  // Scan the node_store_ to find the frame_id to evict.
+  size_t min_kth_time{std::numeric_limits<size_t>::max()};
+  size_t min_time{std::numeric_limits<size_t>::max()};
+  frame_id_t fid{-1};
+  frame_id_t fkthid{-1};
 
-  // Check if the replacer is empty
+  // Lock the latch
+  std::lock_guard _{latch_};
+
+  // If the replacer is empty, return false.
   if (curr_size_ == 0) {
     return false;
   }
 
-  // Find the frame with the maximum backward k-distance
-  // If there exists +inf, return it
-  if (less_than_k_head_->next_ != less_than_k_tail_) {
-    bool has_evictable = false;
-    auto target = less_than_k_head_->next_;
-    size_t least_recently_timestamp = std::numeric_limits<size_t>::max();
+  // Tranverse the node_store_ and maintain separate variables for two cases of frames.
+  for (auto &[id, node] : node_store_) {
+    // Get all infomation in one iteration.
+    if (!node.is_evictable_) {
+      continue;
+    }
 
-    for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-      if (it->is_evictable_ && it->history_.front() < least_recently_timestamp) {
-        // Get the frame id and timestamp
-        target = it;
-        has_evictable = true;
-        least_recently_timestamp = it->history_.front();
+    // If the frame has been accessed more than k times, update the min_kth_time and fkthid.
+    if (node.history_.size() >= k_) {
+      if (min_kth_time >= node.history_.back()) {
+        min_kth_time = node.history_.back();
+        fkthid = id;
       }
-    }
-
-    if (has_evictable) {
-      *frame_id = target->fid_;
-
-      // Remove the frame from the list
-      target->next_->prev_ = target->prev_;
-      target->prev_->next_ = target->next_;
-      target->prev_ = nullptr;
-      target->next_ = nullptr;
-
-      // Decrease the size of the replacer
-      curr_size_--;
-      return true;
-    }
-  }
-
-  // If there is no +inf, return the frame with the maximum backward k-distance
-  if (!greater_than_k_set_.empty()) {
-    for (auto it = greater_than_k_set_.begin(); it != greater_than_k_set_.end(); it++) {
-      if ((*it)->is_evictable_) {
-        // Get the frame id
-        *frame_id = (*it)->fid_;
-
-        // Remove the frame from the set
-        greater_than_k_set_.erase(it);
-
-        // Decrease the size of the replacer
-        curr_size_--;
-        return true;
+    } else {
+      // If the frame has been accessed less than k times, update the min_time and fid.
+      if (min_time >= node.history_.back()) {
+        min_time = node.history_.back();
+        fid = id;
       }
     }
   }
 
-  return false;
-}
-
-auto LRUKReplacer::CheckExist(frame_id_t frame_id) -> bool {
-  // Lock the latch
-  // std::lock_guard<std::mutex> lock(latch_);
-
-  // Check if the frame is in the replacer
-  for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-    if (it->fid_ == frame_id) {
-      return true;
-    }
+  // If there exists a frame that has been accessed less than k times, evict the one with least recent timestamp.
+  if (fid != -1) {
+    *frame_id = fid;
+  } else if (fkthid != -1) { // If all frames have been accessed more than k times, evict the one with least recent kth timestamp.
+    *frame_id = fkthid;
+  } else {
+    return false; // If all frames are not evictable, return false.
   }
 
-  // Check if the frame is in the set
-  return std::any_of(greater_than_k_set_.begin(), greater_than_k_set_.end(),
-                     [frame_id](auto node) { return node->fid_ == frame_id; });
+  // Remove the frame_id from the node_store_.
+  node_store_.erase(*frame_id);
+
+  // Decrease the current size.
+  curr_size_--;
+
+  return true;
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, AccessType access_type) {
-  // Lock the latch
-  std::lock_guard<std::mutex> lock(latch_);
-
-  // Abort if frame_id is invalid
-  if (frame_id < 0 || frame_id > static_cast<frame_id_t>(replacer_size_)) {
-    throw Exception(ExceptionType::INVALID, "Frame id must be within 0 and replacer_size");
+  // Throw an exception if the frame_id is invalid.
+  if (frame_id < 0) {
+    throw Exception(fmt::format("Unable to access frame {}", frame_id));
   }
 
-  // Check if the frame is in the replacer
-  if (!CheckExist(frame_id)) {
-    // Create a new node
-    auto new_frame = std::make_shared<LRUKNode>();
-    new_frame->fid_ = frame_id;
-    new_frame->history_.push_back(current_timestamp_);
+  // Lock the latch.
+  std::lock_guard _{latch_};
 
-    current_timestamp_++;
-
-    // Add the frame to the linked list
-    new_frame->prev_ = less_than_k_tail_->prev_;
-    new_frame->next_ = less_than_k_tail_;
-    less_than_k_tail_->prev_->next_ = new_frame;
-    less_than_k_tail_->prev_ = new_frame;
-
-    // Increase the current size (initial state is inevictable, so no need to increase)
-    // curr_size_++;
-
-    return;
-  }
-
-  // Get the node from the linked list
-  for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-    if (it->fid_ == frame_id) {
-      // Update the history of the frame
-      it->history_.push_back(current_timestamp_);
-      current_timestamp_++;
-
-      // Check if the history of the frame is less than k
-      if (it->history_.size() >= k_) {
-        // Remove the frame from the linked list
-        it->next_->prev_ = it->prev_;
-        it->prev_->next_ = it->next_;
-
-        // Set the old pointer to nullptr
-        it->prev_ = nullptr;
-        it->next_ = nullptr;
-
-        // Insert the frame to the set
-        greater_than_k_set_.insert(std::move(it));
-      } else {
-        // Move the frame to the end of the linked list
-        it->next_->prev_ = it->prev_;
-        it->prev_->next_ = it->next_;
-
-        it->prev_ = less_than_k_tail_->prev_;
-        it->next_ = less_than_k_tail_;
-        less_than_k_tail_->prev_->next_ = it;
-        less_than_k_tail_->prev_ = it;
-      }
-
-      return;
+  // Detect if the frame_id is not in the node_store_.
+  auto iter{node_store_.find(frame_id)};
+  if (iter == node_store_.end()) {
+    // If the replacer is full, throw an exception.
+    if (node_store_.size() >= replacer_size_) {
+      throw Exception(fmt::format("Unable to add frame {} as Replacer is full", frame_id));
     }
+
+    // Insert the frame_id into the node_store_.
+    auto result = node_store_.insert({frame_id, {k_, frame_id}});
+
+    // Update the current size.
+    result.first->second.UpdateAccessTime(current_timestamp_++);
+  } else {
+    // Update the access time of the frame_id.
+    iter->second.UpdateAccessTime(current_timestamp_++);
   }
-
-  // Get the node from the set
-  for (auto &it : greater_than_k_set_) {
-    if (it->fid_ == frame_id) {
-      // Copy the target frame
-      auto new_frame = std::make_shared<LRUKNode>();
-      new_frame->fid_ = frame_id;
-      new_frame->history_ = it->history_;
-      new_frame->history_.push_back(current_timestamp_);
-
-      // Remove the old frame from the set
-      greater_than_k_set_.erase(it);
-
-      // Insert the frame to the set
-      greater_than_k_set_.insert(std::move(new_frame));
-
-      // Update the timestamp
-      current_timestamp_++;
-
-      return;
-    }
-  }
-
-  // If the frame is not found, throw an exception
-  throw Exception(ExceptionType::INVALID, "Frame not found");
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  // Lock the latch
-  std::lock_guard<std::mutex> lock(latch_);
+  // Lock the latch.
+  std::lock_guard _{latch_};
 
-  // Check if the frame is in the replacer
-  if (!CheckExist(frame_id)) {
-    throw Exception(ExceptionType::INVALID, "Frame not found");
+  // Find the frame_id in the node_store_.
+  auto iter{node_store_.find(frame_id)};
+
+  // If the frame_id does not exist, throw an exception.
+  if (iter == node_store_.end()) {
+    throw Exception(fmt::format("Unable to change evictability on frame {} as it does not exists", frame_id));
   }
 
-  // Get the node from the linked list
-  for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-    if (it->fid_ == frame_id) {
-      // Check if the frame is evictable
-      if (set_evictable) {
-        // Increase the size of the replacer if the pre statue is not evictable
-        if (!it->is_evictable_) {
-          curr_size_++;
-        }
-        it->is_evictable_ = true;
-      } else {
-        // Check if the frame is evictable
-        if (it->is_evictable_) {
-          // Decrease the size of the replacer
-          curr_size_--;
-        }
-        it->is_evictable_ = false;
-      }
-
-      return;
+  // If the evictability is changed, update the current size.
+  if (iter->second.is_evictable_ != set_evictable) {
+    if (set_evictable) {
+      curr_size_++;
+    } else {
+      curr_size_--;
     }
   }
 
-  // Get the node from the set
-  for (auto &it : greater_than_k_set_) {
-    if (it->fid_ == frame_id) {
-      // Check if the frame is evictable
-      if (set_evictable) {
-        // Increase the size of the replacer if the pre statue is not evictable
-        if (!it->is_evictable_) {
-          curr_size_++;
-        }
-        it->is_evictable_ = true;
-
-      } else {
-        // Check if the frame is evictable
-        if (it->is_evictable_) {
-          // Decrease the size of the replacer
-          curr_size_--;
-        }
-        it->is_evictable_ = false;
-      }
-
-      return;
-    }
-  }
-
-  // If the frame is not found, throw an exception
-  throw Exception(ExceptionType::INVALID, "Frame not found");
+  // Update the evictability of the frame_id.
+  iter->second.is_evictable_ = set_evictable;
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  // Lock the latch
-  std::lock_guard<std::mutex> lock(latch_);
+  // Lock the latch.
+  std::lock_guard _{latch_};
 
-  // Check if the frame is in the replacer
-  if (!CheckExist(frame_id)) {
+  // Find the frame_id in the node_store_.
+  auto iter{node_store_.find(frame_id)};
+
+  // If the frame_id does not exist, return.
+  if (iter == node_store_.end()) {
     return;
   }
 
-  // Get the node from the linked list
-  for (auto it = less_than_k_head_->next_; it != less_than_k_tail_; it = it->next_) {
-    if (it->fid_ == frame_id && it->is_evictable_) {
-      // Remove the frame from the linked list
-      it->next_->prev_ = it->prev_;
-      it->prev_->next_ = it->next_;
-      it->prev_ = nullptr;
-      it->next_ = nullptr;
-
-      // Decrease the size of the replacer
-      curr_size_--;
-
-      return;
-    }
+  // If the frame_id is not evictable, throw an exception.
+  if (!iter->second.is_evictable_) {
+    throw Exception(fmt::format("Unable to remove frame {} as it does not evictable", frame_id));
   }
 
-  // Get the node from the set
-  for (auto &it : greater_than_k_set_) {
-    if (it->fid_ == frame_id && it->is_evictable_) {
-      // Remove the frame from the set
-      greater_than_k_set_.erase(it);
+  // Remove the frame_id from the node_store_.
+  node_store_.erase(iter);
 
-      // Decrease the size of the replacer
-      curr_size_--;
-
-      return;
-    }
-  }
+  // Update the current size.
+  curr_size_--;
 }
 
 auto LRUKReplacer::Size() -> size_t {
-  std::lock_guard<std::mutex> lock(latch_);
-
+  std::lock_guard _{latch_};
   return curr_size_;
 }
 
