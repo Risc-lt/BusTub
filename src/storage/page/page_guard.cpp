@@ -3,13 +3,55 @@
 
 namespace bustub {
 
-BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {}
+BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
+    // Just swap the pointers
+    bpm_ = that.bpm_;
+    page_ = that.page_;
 
-void BasicPageGuard::Drop() {}
+    // Set the original pointers to nullptr
+    that.bpm_ = nullptr;
+    that.page_ = nullptr;
+}
 
-auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & { return *this; }
+void BasicPageGuard::Drop() {
+    // If the page is not nullptr, then unpin the page
+    if (page_ != nullptr) {
+        bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
+    }
 
-BasicPageGuard::~BasicPageGuard(){};  // NOLINT
+    // Set the pointers to nullptr
+    bpm_ = nullptr;
+    page_ = nullptr;
+}
+
+auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
+    // If the pointers are the same, then return
+    if (this == &that) {
+        return *this;
+    }
+
+    // If the page is not nullptr, then unpin the page
+    this->Drop();
+
+    // Swap the new pointers with the old pointers
+    bpm_ = that.bpm_;
+    page_ = that.page_;
+
+    // Set the original pointers to nullptr
+    that.bpm_ = nullptr;
+    that.page_ = nullptr;
+
+    return *this;
+}
+
+BasicPageGuard::~BasicPageGuard(){
+    // If the page is not nullptr, then unpin the page
+    this->Drop();
+
+    // Set the pointers to nullptr
+    bpm_ = nullptr;
+    page_ = nullptr;
+};
 
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept = default;
 
