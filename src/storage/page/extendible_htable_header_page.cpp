@@ -28,7 +28,14 @@ void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
 
 auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> uint32_t {
   // Get the directory index that the key is hashed to from the high bits of the hash
-  return hash >> (32 - max_depth_);
+  auto lower{1ULL << (sizeof(uint32_t) * 8 - max_depth_)};
+
+  // Min used to mask the hash  
+  auto minused{(1ULL << sizeof(uint32_t)) - lower};
+
+  // Mask the hash to get the directory index
+  auto masked{hash & minused};
+  return masked >> (sizeof(uint32_t) * 8 - max_depth_);
 }
 
 auto ExtendibleHTableHeaderPage::GetDirectoryPageId(uint32_t directory_idx) const -> uint32_t {
