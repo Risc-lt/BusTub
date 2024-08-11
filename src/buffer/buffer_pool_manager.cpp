@@ -301,9 +301,29 @@ auto BufferPoolManager::AllocatePage() -> page_id_t {
   return next_page_id_++;
 }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { 
+  // Fetch the page
+  Page *page = FetchPage(page_id);
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+  // Return the BasicPageGuard
+  if(page != nullptr) {
+    return {this, page};
+  }
+  
+  return {this, nullptr};
+}
+
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
+  // // Get basic page guard
+  // BasicPageGuard basic_page_guard = FetchPageBasic(page_id);
+
+  // // Check if the basic page guard is valid
+  // if(basic_page_guard.GetPage() != nullptr) {
+  //   return {std::move(basic_page_guard)};
+  // }
+
+  return {this, nullptr};
+}
 
 auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
 

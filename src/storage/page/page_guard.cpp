@@ -39,6 +39,34 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
     return *this;
 }
 
+auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
+    // Lock the read latch
+    page_->RLatch();
+
+    // Construct a ReadPageGuard
+    ReadPageGuard read_guard{this->bpm_, this->page_};
+
+    // Set the pointers to nullptr
+    this->bpm_ = nullptr;
+    this->page_ = nullptr;
+
+    return read_guard;
+}
+
+auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
+    // Lock the write latch
+    page_->WLatch();
+
+    // Construct a WritePageGuard
+    WritePageGuard write_guard{this->bpm_, this->page_};
+
+    // Set the pointers to nullptr
+    this->bpm_ = nullptr;
+    this->page_ = nullptr;
+
+    return write_guard;
+}
+
 BasicPageGuard::~BasicPageGuard(){
     // If the page is not nullptr, then unpin the page
     this->Drop();
