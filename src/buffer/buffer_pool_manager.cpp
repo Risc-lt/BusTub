@@ -314,19 +314,47 @@ auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
 }
 
 auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
-  // // Get basic page guard
-  // BasicPageGuard basic_page_guard = FetchPageBasic(page_id);
+  // Fetch the page
+  Page *page = FetchPage(page_id);
 
-  // // Check if the basic page guard is valid
-  // if(basic_page_guard.GetPage() != nullptr) {
-  //   return {std::move(basic_page_guard)};
-  // }
+  // Check if the page is fetched
+  if(page != nullptr) {
+    // Lock the read latch
+    page->RLatch();
 
+    return {this, page};
+  }
+
+  // Return empty ReadPageGuard if the page is not fetched
   return {this, nullptr};
 }
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
+  // Fetch the page
+  Page *page = FetchPage(page_id);
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+  // Check if the page is fetched
+  if(page != nullptr) {
+    // Lock the write latch
+    page->WLatch();
+
+    return {this, page};
+  }
+
+  // Return empty WritePageGuard if the page is not fetched
+  return {this, nullptr};
+}
+
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
+  // Allocate a new page
+  Page *page = NewPage(page_id);
+
+  // Return the BasicPageGuard
+  if(page != nullptr) {
+    return {this, page};
+  }
+
+  return {this, nullptr};
+}
 
 }  // namespace bustub
