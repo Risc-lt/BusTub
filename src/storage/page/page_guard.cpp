@@ -16,10 +16,13 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 }
 
 void BasicPageGuard::Drop() {
-  // If the page is not nullptr, then unpin the page
-  if (page_ != nullptr && bpm_ != nullptr) {
-    bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
+  // Return if the page is nullptr
+  if (bpm_ == nullptr) {
+    return;
   }
+
+  // Unpin the page
+  bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
 
   // Set the pointers to nullptr
   bpm_ = nullptr;
@@ -100,20 +103,17 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
   }
 
   // If the page is not nullptr, then unpin the page
-  guard_.Drop();
+  this->Drop();
 
   // Swap the new pointers with the old pointers
   guard_ = std::move(that.guard_);
-
-  // Clear the old pointers
-  that.guard_.Drop();
 
   return *this;
 }
 
 void ReadPageGuard::Drop() {
   // If the page is not nullptr
-  if (guard_.page_ == nullptr) {
+  if (guard_.bpm_ == nullptr) {
     return;
   }
 
@@ -141,13 +141,10 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
   }
 
   // If the page is not nullptr, then unpin the page
-  guard_.Drop();
+  this->Drop();
 
   // Swap the new pointers with the old pointers
   guard_ = std::move(that.guard_);
-
-  // Clear the old pointers
-  that.guard_.Drop();
 
   return *this;
 }
