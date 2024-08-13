@@ -116,6 +116,11 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
   auto header_page_guard{bpm_->FetchPageWrite(header_page_id_)};
   auto header{header_page_guard.AsMut<ExtendibleHTableHeaderPage>()};
 
+  // Check if the header page is null
+  if (header == nullptr) {
+    throw Exception("Fetch header failed");
+  }
+
   // Get the directory index
   auto directory_idx{header->HashToDirectoryIndex(hash)};
 
@@ -129,6 +134,9 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
   // Get the directory page guard and data
   auto directory_page_guard{bpm_->FetchPageWrite(directory_page_id)};
   auto directory{directory_page_guard.AsMut<ExtendibleHTableDirectoryPage>()};
+
+  // Drop the header page guard
+  header_page_guard.Drop();
 
   // Get the bucket index
   auto bucket_idx{directory->HashToBucketIndex(hash)};
