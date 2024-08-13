@@ -33,9 +33,7 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
   }
 
   // If the page is not nullptr, then unpin the page
-  if (bpm_ != nullptr) {
-    this->Drop();
-  }
+  this->Drop();
 
   // Swap the new pointers with the old pointers
   bpm_ = that.bpm_;
@@ -92,9 +90,7 @@ BasicPageGuard::~BasicPageGuard() {
 
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept {
   // Just swap the pointers
-  that.guard_.page_->RUnlatch();
   guard_ = std::move(that.guard_);
-  guard_.page_->RLatch();
 }
 
 auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & {
@@ -107,10 +103,11 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
   guard_.Drop();
 
   // Swap the new pointers with the old pointers
-  that.guard_.page_->RUnlatch();
   guard_ = std::move(that.guard_);
-  that.guard_.page_->RLatch();
-  
+
+  // Clear the old pointers
+  that.guard_.Drop();
+
   return *this;
 }
 
@@ -134,9 +131,7 @@ ReadPageGuard::~ReadPageGuard() {
 
 WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
   // Just swap the pointers
-  that.guard_.page_->WUnlatch();
   guard_ = std::move(that.guard_);
-  this->guard_.page_->WLatch();
 }
 
 auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard & {
@@ -149,9 +144,10 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
   guard_.Drop();
 
   // Swap the new pointers with the old pointers
-  that.guard_.page_->WUnlatch();
   guard_ = std::move(that.guard_);
-  this->guard_.page_->WLatch();
+
+  // Clear the old pointers
+  that.guard_.Drop();
 
   return *this;
 }
