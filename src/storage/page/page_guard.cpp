@@ -6,14 +6,18 @@ namespace bustub {
 
 BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
   // Just swap the pointers
-  std::swap(bpm_, that.bpm_);
-  std::swap(page_, that.page_);
-  std::swap(is_dirty_, that.is_dirty_);
+  bpm_ = that.bpm_;
+  page_ = that.page_;
+  is_dirty_ = that.is_dirty_;
+
+  // Set the pointers to nullptr
+  that.bpm_ = nullptr;
+  that.page_ = nullptr;
 }
 
 void BasicPageGuard::Drop() {
   // If the page is not nullptr, then unpin the page
-  if (page_ != nullptr) {
+  if (page_ != nullptr && bpm_ != nullptr) {
     bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
   }
 
@@ -29,40 +33,54 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
   }
 
   // If the page is not nullptr, then unpin the page
-  this->Drop();
+  if(bpm_ != nullptr) {
+    this->Drop();
+  }  
 
   // Swap the new pointers with the old pointers
-  std::swap(bpm_, that.bpm_);
-  std::swap(page_, that.page_);
-  std::swap(is_dirty_, that.is_dirty_);
+  bpm_ = that.bpm_;
+  page_ = that.page_;
+  is_dirty_ = that.is_dirty_;
+
+  // Set the pointers to nullptr
+  that.bpm_ = nullptr;
+  that.page_ = nullptr;
 
   return *this;
 }
 
 auto BasicPageGuard::UpgradeRead() -> ReadPageGuard {
+  // Check if the page is nullptr or bpm is nullptr
+  if (page_ == nullptr || bpm_ == nullptr) {
+    return ReadPageGuard{};
+  }
+
   // Lock the read latch
   page_->RLatch();
 
   // Construct a ReadPageGuard
-  ReadPageGuard read_guard{this->bpm_, this->page_};
+  ReadPageGuard read_guard{this->bpm_, bpm_->FetchPage(page_->GetPageId())};
 
   // Set the pointers to nullptr
-  this->bpm_ = nullptr;
-  this->page_ = nullptr;
+  this->Drop();
 
   return read_guard;
 }
 
 auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
+  // Check if the page is nullptr or bpm is nullptr
+  if (page_ == nullptr || bpm_ == nullptr) {
+    return WritePageGuard{};
+  }
+
   // Lock the write latch
   page_->WLatch();
 
   // Construct a WritePageGuard
-  WritePageGuard write_guard{this->bpm_, this->page_};
+  WritePageGuard write_guard{this->bpm_, bpm_->FetchPage(page_->GetPageId())};
 
   // Set the pointers to nullptr
-  this->bpm_ = nullptr;
-  this->page_ = nullptr;
+  this->Drop();
 
   return write_guard;
 }
