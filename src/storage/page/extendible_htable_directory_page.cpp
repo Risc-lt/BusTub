@@ -176,4 +176,24 @@ void ExtendibleHTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {
   local_depths_[bucket_idx]--;
 }
 
+auto ExtendibleHTableDirectoryPage::MaxSize() const -> uint32_t { 
+  return 1U << max_depth_;  
+}
+
+auto ExtendibleHTableDirectoryPage::GetMaxDepth() const -> uint32_t { 
+  return max_depth_;  
+}
+
+auto ExtendibleHTableDirectoryPage::GetGlobalDepthMask() const -> uint32_t {
+  return (1U << global_depth_) - 1;
+}
+
+auto ExtendibleHTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) const -> uint32_t {
+  // Get the number of bits to use for the bucket index
+  uint32_t mask = (1U << local_depths_[bucket_idx]) - 1;
+
+  // Get the local depth mask
+  return mask;
+}
+
 }  // namespace bustub
