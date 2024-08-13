@@ -73,6 +73,16 @@ class DiskExtendibleHashTable {
    */
   auto Remove(const K &key, Transaction *transaction = nullptr) -> bool;
 
+  /**
+    * Helper function to merge two buckets into one.
+    * @param directory the directory page
+    * @param empty_idx the index of the empty bucket
+    * @param empty_bucket_guard the write page guard of the empty bucket
+    * @return true if merge succeeded, false otherwise
+    */
+  auto Merge(ExtendibleHTableDirectoryPage *directory, uint32_t empty_idx,
+            WritePageGuard &empty_bucket_guard) -> std::pair<uint32_t, uint32_t>;
+
   /** TODO(P2): Add implementation
    * Get the value associated with a given key in the hash table.
    *
