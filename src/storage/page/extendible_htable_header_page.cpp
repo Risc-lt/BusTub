@@ -21,7 +21,7 @@ void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
   this->max_depth_ = max_depth;
 
   // Set the directory page ids to invalid page id
-  for (int & directory_page_id : directory_page_ids_) {
+  for (int &directory_page_id : directory_page_ids_) {
     directory_page_id = INVALID_PAGE_ID;
   }
 }
@@ -30,7 +30,7 @@ auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> ui
   // Get the directory index that the key is hashed to from the high bits of the hash
   auto lower{1ULL << (sizeof(uint32_t) * 8 - max_depth_)};
 
-  // Min used to mask the hash  
+  // Min used to mask the hash
   auto minused{(1ULL << sizeof(uint32_t)) - lower};
 
   // Mask the hash to get the directory index

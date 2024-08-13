@@ -26,13 +26,13 @@ void ExtendibleHTableDirectoryPage::Init(uint32_t max_depth) {
 
   // Initialize the glocal depth and local depths
   global_depth_ = 0;
-  
-  for(unsigned char & local_depth : local_depths_) {
+
+  for (unsigned char &local_depth : local_depths_) {
     local_depth = 0;
   }
 
   // Set the bucket page ids to invalid page id
-  for (page_id_t & bucket_page_id : bucket_page_ids_) {
+  for (page_id_t &bucket_page_id : bucket_page_ids_) {
     bucket_page_id = INVALID_PAGE_ID;
   }
 }
@@ -78,12 +78,10 @@ auto ExtendibleHTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) cons
   uint32_t mask = (1U << local_depth) - 1;
 
   // Get the split image index
-  return (bucket_idx & mask ) ^ (1U << (local_depths_[bucket_idx] - 1));
+  return (bucket_idx & mask) ^ (1U << (local_depths_[bucket_idx] - 1));
 }
 
-auto ExtendibleHTableDirectoryPage::GetGlobalDepth() const -> uint32_t { 
-  return global_depth_;  
-}
+auto ExtendibleHTableDirectoryPage::GetGlobalDepth() const -> uint32_t { return global_depth_; }
 
 void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
   // Check if the global depth is at the maximum
@@ -115,7 +113,7 @@ void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
   global_depth_--;
 }
 
-auto ExtendibleHTableDirectoryPage::CanShrink() -> bool { 
+auto ExtendibleHTableDirectoryPage::CanShrink() -> bool {
   // Check if all local depth is less than the global depth
   for (uint32_t i = 0; i < (1U << global_depth_); i++) {
     if (local_depths_[i] >= global_depth_) {
@@ -127,9 +125,9 @@ auto ExtendibleHTableDirectoryPage::CanShrink() -> bool {
   return true;
 }
 
-auto ExtendibleHTableDirectoryPage::Size() const -> uint32_t { 
+auto ExtendibleHTableDirectoryPage::Size() const -> uint32_t {
   // Get the size of the directory
-  return 1U << global_depth_;  
+  return 1U << global_depth_;
 }
 
 auto ExtendibleHTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) const -> uint32_t {
@@ -149,8 +147,8 @@ void ExtendibleHTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t l
   }
 
   // Set the local depth of the page in all bucket
-  for(uint32_t i = 0; i < Size(); i++) {
-    if ( bucket_page_ids_[i] == bucket_page_ids_[bucket_idx] ) {
+  for (uint32_t i = 0; i < Size(); i++) {
+    if (bucket_page_ids_[i] == bucket_page_ids_[bucket_idx]) {
       local_depths_[i] = local_depth;
     }
   }
@@ -176,17 +174,11 @@ void ExtendibleHTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {
   local_depths_[bucket_idx]--;
 }
 
-auto ExtendibleHTableDirectoryPage::MaxSize() const -> uint32_t { 
-  return 1U << max_depth_;  
-}
+auto ExtendibleHTableDirectoryPage::MaxSize() const -> uint32_t { return 1U << max_depth_; }
 
-auto ExtendibleHTableDirectoryPage::GetMaxDepth() const -> uint32_t { 
-  return max_depth_;  
-}
+auto ExtendibleHTableDirectoryPage::GetMaxDepth() const -> uint32_t { return max_depth_; }
 
-auto ExtendibleHTableDirectoryPage::GetGlobalDepthMask() const -> uint32_t {
-  return (1U << global_depth_) - 1;
-}
+auto ExtendibleHTableDirectoryPage::GetGlobalDepthMask() const -> uint32_t { return (1U << global_depth_) - 1; }
 
 auto ExtendibleHTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) const -> uint32_t {
   // Get the number of bits to use for the bucket index

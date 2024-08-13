@@ -301,15 +301,15 @@ auto BufferPoolManager::AllocatePage() -> page_id_t {
   return next_page_id_++;
 }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { 
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
   // Fetch the page
   Page *page = FetchPage(page_id);
 
   // Return the BasicPageGuard
-  if(page != nullptr) {
+  if (page != nullptr) {
     return {this, page};
   }
-  
+
   return {this, nullptr};
 }
 
@@ -318,7 +318,7 @@ auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
   Page *page = FetchPage(page_id);
 
   // Check if the page is fetched
-  if(page != nullptr) {
+  if (page != nullptr) {
     // Lock the read latch
     page->RLatch();
 
@@ -334,7 +334,7 @@ auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
   Page *page = FetchPage(page_id);
 
   // Check if the page is fetched
-  if(page != nullptr) {
+  if (page != nullptr) {
     // Lock the write latch
     page->WLatch();
 
@@ -350,7 +350,7 @@ auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
   Page *page = NewPage(page_id);
 
   // Return the BasicPageGuard
-  if(page != nullptr) {
+  if (page != nullptr) {
     return {this, page};
   }
 

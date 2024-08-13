@@ -42,7 +42,7 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Lookup(const K &key, V &value, const 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::Insert(const K &key, const V &value, const KC &cmp) -> bool {
   // Check if the bucket is full
-  if (size_ == max_size_ ) {
+  if (size_ == max_size_) {
     return false;
   }
 

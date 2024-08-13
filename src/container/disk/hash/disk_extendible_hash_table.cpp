@@ -41,7 +41,7 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
       header_max_depth_(header_max_depth),
       directory_max_depth_(directory_max_depth),
       bucket_max_size_(bucket_max_size) {
-  // Create the header page 
+  // Create the header page
   auto header_page_guard{bpm->NewPageGuarded(&header_page_id_)};
 
   // Initialize the header page
@@ -135,20 +135,20 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
 
   // Get the bucket page id
   page_id_t bucket_page_id{static_cast<int32_t>(directory->GetBucketPageId(bucket_idx))};
-  
+
   // Get the bucket page guard and data
   auto bucket_page_guard{bpm_->FetchPageWrite(bucket_page_id)};
   auto bucket{bucket_page_guard.AsMut<ExtendibleHTableBucketPage<K, V, KC>>()};
-  if(bucket == nullptr){
+  if (bucket == nullptr) {
     throw Exception("Bucket page is null");
   }
 
   /*
-    * The bucket page exists, but it may be full. We need to check if the bucket page is full.
-    * If the bucket page is full, we need to split the bucket page.
-    */
-  
-  if(!bucket->IsFull()){
+   * The bucket page exists, but it may be full. We need to check if the bucket page is full.
+   * If the bucket page is full, we need to split the bucket page.
+   */
+
+  if (!bucket->IsFull()) {
     // The bucket page is not full.
     // Insert the key-value pair to the bucket page.
     return bucket->Insert(key, value, cmp_);
@@ -199,7 +199,6 @@ auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Tra
     bucket->Insert(key, value, cmp_);
   }
   return true;
-
 }
 
 template <typename K, typename V, typename KC>
@@ -234,7 +233,7 @@ auto DiskExtendibleHashTable<K, V, KC>::InsertToNewBucket(ExtendibleHTableDirect
   page_id_t bucket_page_id;
   auto g{bpm_->NewPageGuarded(&bucket_page_id)};
 
-  // Set the bucket page id in the directory page 
+  // Set the bucket page id in the directory page
   directory->SetBucketPageId(bucket_idx, bucket_page_id);
   if (directory == nullptr) {
     throw Exception("Create directory failed");
@@ -273,7 +272,6 @@ void DiskExtendibleHashTable<K, V, KC>::MigrateEntries(ExtendibleHTableBucketPag
     i++;
   }
 }
-
 
 /*****************************************************************************
  * UNUSED
@@ -350,8 +348,7 @@ auto DiskExtendibleHashTable<K, V, KC>::Remove(const K &key, Transaction *transa
 
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Merge(ExtendibleHTableDirectoryPage *directory, uint32_t empty_idx,
-                                                         WritePageGuard &empty_bucket_guard)
-    -> std::pair<uint32_t, uint32_t> {
+                                              WritePageGuard &empty_bucket_guard) -> std::pair<uint32_t, uint32_t> {
   // If the empty bucket is the only bucket in the directory, return the empty bucket page id and local depth
   if (directory->GetLocalDepth(empty_idx) == 0) {
     return {directory->GetBucketPageId(empty_idx), 0};
@@ -365,7 +362,7 @@ auto DiskExtendibleHashTable<K, V, KC>::Merge(ExtendibleHTableDirectoryPage *dir
 
   // Get the split bucket page id
   directory->SetBucketPageId(empty_idx, directory->GetBucketPageId(split_idx));
-  
+
   // Decrement the local depth of the empty and split bucket
   directory->DecrLocalDepth(empty_idx);
   directory->DecrLocalDepth(split_idx);
