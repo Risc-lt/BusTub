@@ -33,9 +33,9 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
   }
 
   // If the page is not nullptr, then unpin the page
-  if(bpm_ != nullptr) {
+  if (bpm_ != nullptr) {
     this->Drop();
-  }  
+  }
 
   // Swap the new pointers with the old pointers
   bpm_ = that.bpm_;
@@ -112,17 +112,15 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
 
 void ReadPageGuard::Drop() {
   // If the page is not nullptr
-  if (guard_.page_ != nullptr) {
-    // Unlatch the page
-    guard_.page_->RUnlatch();
-
-    // Unpin the page
-    guard_.Drop();
+  if (guard_.page_ == nullptr) {
+    return;
   }
 
-  // Set the pointers to nullptr
-  guard_.bpm_ = nullptr;
-  guard_.page_ = nullptr;
+  // Unlatch the page
+  guard_.page_->RUnlatch();
+
+  // Unpin the page
+  guard_.Drop();
 }
 
 ReadPageGuard::~ReadPageGuard() {
@@ -151,18 +149,16 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
 }
 
 void WritePageGuard::Drop() {
-  // If the page is not nullptr
+  // If the page is nullptr
   if (guard_.page_ != nullptr) {
-    // Unlatch the page
-    guard_.page_->WUnlatch();
-
-    // Unpin the page
-    guard_.Drop();
+    return;
   }
 
-  // Set the pointers to nullptr
-  guard_.bpm_ = nullptr;
-  guard_.page_ = nullptr;
+  // Unlatch the page
+  guard_.page_->WUnlatch();
+
+  // Unpin the page
+  guard_.Drop();
 }
 
 WritePageGuard::~WritePageGuard() {
