@@ -41,7 +41,12 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
       header_max_depth_(header_max_depth),
       directory_max_depth_(directory_max_depth),
       bucket_max_size_(bucket_max_size) {
-  throw NotImplementedException("DiskExtendibleHashTable is not implemented");
+  // Create the header page 
+  auto header_page_guard{bpm->NewPageGuarded(&header_page_id_)};
+
+  // Initialize the header page
+  auto header_page{header_page_guard.AsMut<ExtendibleHTableHeaderPage>()};
+  header_page->Init(header_max_depth_);
 }
 
 /*****************************************************************************
@@ -50,6 +55,45 @@ DiskExtendibleHashTable<K, V, KC>::DiskExtendibleHashTable(const std::string &na
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::GetValue(const K &key, std::vector<V> *result, Transaction *transaction) const
     -> bool {
+  // Get the hash value of the key
+  auto hash{Hash(key)};
+
+  // Get the header page guard and data
+  auto header_page_guard{bpm_->FetchPageRead(header_page_id_)};
+  auto header{header_page_guard.As<ExtendibleHTableHeaderPage>()};
+
+  // Get the directory index
+  auto directory_idx{header->HashToDirectoryIndex(hash)};
+  page_id_t directory_page_id{static_cast<int32_t>(header->GetDirectoryPageId(directory_idx))};
+  if (directory_page_id == INVALID_PAGE_ID) {
+    // The corresponding page is not exists.
+    return false;
+  }
+
+  // Get the directory page guard and data
+  auto directory_page_guard{bpm_->FetchPageRead(directory_page_id)};
+  auto directory{directory_page_guard.As<ExtendibleHTableDirectoryPage>()};
+
+  // Get the bucket index
+  auto bucket_idx{directory->HashToBucketIndex(hash)};
+  page_id_t bucket_page_id{static_cast<int32_t>(directory->GetBucketPageId(bucket_idx))};
+  if (bucket_page_id == INVALID_PAGE_ID) {
+    // The corresponding page is not exists.
+    return false;
+  }
+
+  // Get the bucket page guard and data
+  auto bucket_page_guard{bpm_->FetchPageRead(bucket_page_id)};
+  auto bucket_page{bucket_page_guard.As<ExtendibleHTableBucketPage<K, V, KC>>()};
+
+  // Lookup the key in the bucket page
+  result->resize(1);
+  if (bucket_page->Lookup(key, result->at(0), cmp_)) {
+    return true;
+  }
+
+  // Return empty result and false if the key is not found
+  result->resize(0);
   return false;
 }
 
