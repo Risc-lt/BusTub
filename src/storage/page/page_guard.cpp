@@ -70,7 +70,7 @@ auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
 BasicPageGuard::~BasicPageGuard() {
   // If the page is not nullptr, then unpin the page
   this->Drop();
-};
+}
 
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept {
   // Just swap the pointers
