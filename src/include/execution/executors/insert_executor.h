@@ -15,6 +15,7 @@
 #include <memory>
 #include <utility>
 
+#include "concurrency/transaction.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
@@ -57,6 +58,26 @@ class InsertExecutor : public AbstractExecutor {
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+
+  TableInfo *table_info_;
+  std::vector<IndexInfo *> indexes_;
+  Transaction *txn_;
+  
+  /** 
+    * Insert the tuple into the table 
+    * @param tuple The tuple to be inserted
+    * @return The RID of the inserted tuple
+    */
+  auto InsertTuple(Tuple &tuple) -> RID;
+  
+  /** 
+    * Insert the indexes for the tuple 
+    * @param v The vector of values to be inserted
+    * @param rid The RID of the tuple
+    * @param txn The transaction
+    */
+  void InsertIndexes(std::vector<Value> &v, RID rid, Transaction *txn);
 };
 
 }  // namespace bustub
