@@ -10,6 +10,10 @@
 #include "catalog/catalog.h"
 #include "concurrency/transaction.h"
 #include "execution/expressions/abstract_expression.h"
+#include "execution/expressions/column_value_expression.h"
+#include "execution/expressions/comparison_expression.h"
+#include "execution/expressions/constant_value_expression.h"
+#include "execution/expressions/logic_expression.h"
 #include "execution/plans/abstract_plan.h"
 
 namespace bustub {
@@ -25,6 +29,32 @@ class Optimizer {
   auto Optimize(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
 
   auto OptimizeCustom(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
+
+  /**
+   * @brief get the type of expr.
+   * @param expr
+   * @return ValueExpressionType the type we interested.
+   */
+  enum class ValueExpressionType { UNKNOW, CONST_VALUE, COLUMN_VALUE, COMP_EXPR, LOGIC_EXPR };
+  static auto GetValueExpressionType(const AbstractExpression *expr) -> ValueExpressionType {
+    if (dynamic_cast<const ConstantValueExpression *>(expr) != nullptr) {
+      return ValueExpressionType::CONST_VALUE;
+    }
+    if (dynamic_cast<const ColumnValueExpression *>(expr) != nullptr) {
+      return ValueExpressionType::COLUMN_VALUE;
+    }
+    if (dynamic_cast<const ComparisonExpression *>(expr) != nullptr) {
+      return ValueExpressionType::COMP_EXPR;
+    }
+    if (dynamic_cast<const LogicExpression *>(expr) != nullptr) {
+      return ValueExpressionType::LOGIC_EXPR;
+    }
+    if (dynamic_cast<const LogicExpression *>(expr) != nullptr) {
+      return ValueExpressionType::LOGIC_EXPR;
+    }
+    return ValueExpressionType::UNKNOW;
+  }
+
 
  private:
   /**
@@ -106,6 +136,33 @@ class Optimizer {
    * @return std::optional<size_t>
    */
   auto EstimatedCardinality(const std::string &table_name) -> std::optional<size_t>;
+
+   /**
+   * @brief find an indexed column that could be used as index
+   * @param expr the root of Expression AST.
+   * @return bool found or not.
+   */
+  auto FindAnIndexRecursively(const AbstractExpression *expr) -> bool;
+
+  /**
+    * @brief get the index id of the column
+    * @param expr the expression to be checked
+    * @return true if the index is found, false otherwise
+    */
+   auto FindIndex(const ColumnValueExpression *expr) -> int { return index_id_[expr->GetColIdx()]; }
+
+  /** the mapping from column index to index id */
+  std::vector<int> index_id_;
+
+  /** The result of FindAnIndexRecursively */
+  index_oid_t found_index_id_;
+  ConstantValueExpression *pred_key_;
+
+  int eq_count_ = 0;
+
+  /** The value used by FindAnIndexRecursively */
+  std::vector<IndexInfo *> indexes_;
+  TableInfo *table_info_;
 
   /** Catalog will be used during the planning process. USERS SHOULD ENSURE IT OUTLIVES
    * OPTIMIZER, otherwise it's a dangling reference.
