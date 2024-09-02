@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/catalog.h"
+#include "concurrency/transaction.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/update_plan.h"
@@ -66,5 +68,8 @@ class UpdateExecutor : public AbstractExecutor {
 
   /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
+
+  std::vector<IndexInfo *> indexes_;
+  Transaction *txn_;
 };
 }  // namespace bustub
