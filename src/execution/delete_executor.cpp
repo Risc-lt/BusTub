@@ -18,53 +18,54 @@ namespace bustub {
 
 DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
-    // Initialize the table info and indexes
-    auto catalog = exec_ctx_->GetCatalog();
-
-    table_info_ = catalog->GetTable(plan_->table_oid_);
-    indexes_ = catalog->GetTableIndexes(table_info_->name_);
-}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void DeleteExecutor::Init() {
     // Initialize the child executor
     child_executor_->Init();
 }
 
-auto DeleteExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-    // Check if the table info is null
-    if (table_info_ == nullptr) {
-        return false;
-    }
+auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+    // Initialize the table info, transaction, table heap, and index info vector
+    TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
+    Transaction *tx = GetExecutorContext()->GetTransaction();
+    TableHeap *table_heap = table_info->table_.get();
+    std::vector<IndexInfo *> index_info_vector = GetExecutorContext()->GetCatalog()->GetTableIndexes(table_info->name_);
 
-    // Initialize the recording data
+    // Initialize the child tuple and the number of lines deleted
+    Tuple child_tuple{};
     int line_deleted = 0;
 
-    // Volcano model
-    while (child_executor_->Next(tuple, rid)) {
-        // Mark the old tuple as deleted
-        auto old_tuplemeta = table_info_->table_->GetTupleMeta(*rid);
-        old_tuplemeta.is_deleted_ = true;
-        table_info_->table_->UpdateTupleMeta(old_tuplemeta, *rid);
+    // Iterate through the child executor and delete the tuples
+    while (child_executor_->Next(&child_tuple, rid)) {
+        // Mardk the tuple as deleted
+        table_heap->UpdateTupleMeta(TupleMeta{tx->GetTransactionTempTs(), true}, *rid);
 
-        // Update the indexes
-        for (auto &index : indexes_) {
-            // Get the key of the tuple
-            auto key_deleted = tuple->KeyFromTuple(table_info_->schema_, *index->index_->GetKeySchema(), index->index_->GetKeyAttrs());
-            // Delete the entry from the index
-            index->index_->DeleteEntry(key_deleted, *rid, exec_ctx_->GetTransaction());
+        // Delete the tuple from the indexes
+        for (auto &index_info : index_info_vector) {
+            index_info->index_->DeleteEntry(
+                child_tuple.KeyFromTuple(table_info->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs()),
+                *rid, tx);
         }
 
-        // Increment the number of lines deleted
         line_deleted++;
     }
 
-    // Set the output
+    // Create the output tuple
     std::vector<Value> values{};
-    values.emplace_back(Value(INTEGER, line_deleted));
-    *tuple = Tuple(values, &GetOutputSchema());
+    values.reserve(GetOutputSchema().GetColumnCount());
+    values.emplace_back(INTEGER, line_deleted);
 
-    return true;
+    *tuple = Tuple{values, &GetOutputSchema()};
+
+    // Return true if the number of lines deleted is not zero and the executor is not deleted
+    if (line_deleted == 0 && !is_deleted_) {
+        is_deleted_ = true;
+        return true;
+    }
+
+    is_deleted_ = true;
+    return line_deleted != 0;
 }
 
 }  // namespace bustub
