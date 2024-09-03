@@ -81,7 +81,10 @@ auto NestedLoopJoinExecutor::InnerJoinTuple(Tuple *left_tuple, Tuple *right_tupl
 }
 
 auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  // Initialize the left and right tuples and RIDs
   Tuple right_tuple;
+  RID left_rid;
+  RID right_rid;
 
   while (true) {
     // If the left tuple reaches the end, return false
@@ -90,19 +93,19 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     }
 
     // If the right tuple reaches the end
-    if (!right_executor_->Next(&right_tuple, rid)) {
+    if (!right_executor_->Next(&right_tuple, &right_rid)) {
       // If left join, perform left join
       if(plan_->GetJoinType() == JoinType::LEFT && !left_done_) {
         *tuple = LeftJoinTuple(&left_tuple_);
         *rid = tuple->GetRid();
 
         left_done_ = true;
-        continue;
+        return true;
       }
 
       // If not left join, reset the right executor and move to the next left tuple
       right_executor_->Init();
-      left_next_ = left_executor_->Next(&left_tuple_, rid);
+      left_next_ = left_executor_->Next(&left_tuple_, &left_rid);
       left_done_ = false;
       continue;
     }
