@@ -50,12 +50,12 @@ auto NestedLoopJoinExecutor::LeftJoinTuple(Tuple *left_tuple) -> Tuple {
   values.reserve(GetOutputSchema().GetColumnCount());
 
   // Add the left tuple values
-  for(uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
+  for (uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
     values.push_back(left_tuple->GetValue(&left_executor_->GetOutputSchema(), i));
   }
 
   // Add the right tuple values as NULL
-  for(uint32_t i = 0; i < right_executor_->GetOutputSchema().GetColumnCount(); i++) {
+  for (uint32_t i = 0; i < right_executor_->GetOutputSchema().GetColumnCount(); i++) {
     values.push_back(ValueFactory::GetNullValueByType(plan_->GetRightPlan()->OutputSchema().GetColumn(i).GetType()));
   }
 
@@ -68,12 +68,12 @@ auto NestedLoopJoinExecutor::InnerJoinTuple(Tuple *left_tuple, Tuple *right_tupl
   values.reserve(GetOutputSchema().GetColumnCount());
 
   // Add the left tuple values
-  for(uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
+  for (uint32_t i = 0; i < left_executor_->GetOutputSchema().GetColumnCount(); i++) {
     values.push_back(left_tuple->GetValue(&left_executor_->GetOutputSchema(), i));
   }
 
   // Add the right tuple values
-  for(uint32_t i = 0; i < right_executor_->GetOutputSchema().GetColumnCount(); i++) {
+  for (uint32_t i = 0; i < right_executor_->GetOutputSchema().GetColumnCount(); i++) {
     values.push_back(right_tuple->GetValue(&right_executor_->GetOutputSchema(), i));
   }
 
@@ -95,7 +95,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // If the right tuple reaches the end
     if (!right_executor_->Next(&right_tuple, &right_rid)) {
       // If left join, perform left join
-      if(plan_->GetJoinType() == JoinType::LEFT && !left_done_) {
+      if (plan_->GetJoinType() == JoinType::LEFT && !left_done_) {
         *tuple = LeftJoinTuple(&left_tuple_);
         *rid = tuple->GetRid();
 

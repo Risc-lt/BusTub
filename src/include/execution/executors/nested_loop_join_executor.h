@@ -54,18 +54,18 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
 
  private:
   /**
-    * Perform a left join between the left and right tuple.
-    * @param left_tuple The left tuple
-    * @return The joined tuple
-    */
+   * Perform a left join between the left and right tuple.
+   * @param left_tuple The left tuple
+   * @return The joined tuple
+   */
   auto LeftJoinTuple(Tuple *left_tuple) -> Tuple;
 
   /**
-    * Perform an inner join between the left and right tuple.
-    * @param left_tuple The left tuple
-    * @param right_tuple The right tuple
-    * @return The joined tuple
-    */
+   * Perform an inner join between the left and right tuple.
+   * @param left_tuple The left tuple
+   * @param right_tuple The right tuple
+   * @return The joined tuple
+   */
   auto InnerJoinTuple(Tuple *left_tuple, Tuple *right_tuple) -> Tuple;
 
   /** The NestedLoopJoin plan node to be executed. */
@@ -79,7 +79,7 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
 
   /** The current tuple from the left side of join. */
   Tuple left_tuple_;
-  
+
   /** The flag to indicate if the next tuple from the left side of join is ready. */
   bool left_next_{false};
   bool left_done_{false};
