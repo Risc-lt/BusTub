@@ -48,6 +48,6 @@ class IndexScanExecutor : public AbstractExecutor {
   const IndexScanPlanNode *plan_;
 
   TableInfo *table_info_;
-  HashTableIndexForTwoIntegerColumn *htable_index_; 
+  HashTableIndexForTwoIntegerColumn *htable_index_;
 };
 }  // namespace bustub

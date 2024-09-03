@@ -55,7 +55,6 @@ class Optimizer {
     return ValueExpressionType::UNKNOW;
   }
 
-
  private:
   /**
    * @brief merge projections that do identical project.
@@ -137,7 +136,7 @@ class Optimizer {
    */
   auto EstimatedCardinality(const std::string &table_name) -> std::optional<size_t>;
 
-   /**
+  /**
    * @brief find an indexed column that could be used as index
    * @param expr the root of Expression AST.
    * @return bool found or not.
@@ -145,11 +144,11 @@ class Optimizer {
   auto FindAnIndexRecursively(const AbstractExpression *expr) -> bool;
 
   /**
-    * @brief get the index id of the column
-    * @param expr the expression to be checked
-    * @return true if the index is found, false otherwise
-    */
-   auto FindIndex(const ColumnValueExpression *expr) -> int { return index_id_[expr->GetColIdx()]; }
+   * @brief get the index id of the column
+   * @param expr the expression to be checked
+   * @return true if the index is found, false otherwise
+   */
+  auto FindIndex(const ColumnValueExpression *expr) -> int { return index_id_[expr->GetColIdx()]; }
 
   /** the mapping from column index to index id */
   std::vector<int> index_id_;
