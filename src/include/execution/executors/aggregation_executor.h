@@ -64,8 +64,6 @@ class SimpleAggregationHashTable {
   }
 
   /**
-   * TODO(Student)
-   *
    * Combines the input into the aggregation result.
    * @param[out] result The output aggregate value
    * @param input The input value
@@ -125,6 +123,11 @@ class SimpleAggregationHashTable {
   }
 
   /**
+   * Inserts an empty value into the hash table.
+   */
+  void EmptyInsertCombine() { ht_.insert({{std::vector<Value>()}, GenerateInitialAggregateValue()}); }
+
+  /**
    * Clear the hash table
    */
   void Clear() { ht_.clear(); }
@@ -163,6 +166,9 @@ class SimpleAggregationHashTable {
 
   /** @return Iterator to the end of the hash table */
   auto End() -> Iterator { return Iterator{ht_.cend()}; }
+
+  /** @return The number of elements in the hash table */
+  auto Size() -> size_t { return ht_.size(); }
 
  private:
   /** The hash table is just a map from aggregate keys to aggregate values */
@@ -232,9 +238,9 @@ class AggregationExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
 
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
 
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
 };
 }  // namespace bustub
