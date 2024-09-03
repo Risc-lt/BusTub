@@ -11,53 +11,50 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/seq_scan_executor.h"
-#include <cstddef>
-#include <memory>
-#include "storage/table/table_iterator.h"
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan), iter_(nullptr) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx), plan_(plan) {}
 
 void SeqScanExecutor::Init() {
-    // Get the table info from the catalog
-    auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid());
-    schema_ = &table_info->schema_;
-    // Get the table iterator
-    iter_ = std::make_unique<TableIterator>(table_info->table_->MakeIterator());
+    // Initialize the table heap and the iterator
+    table_info_ = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
+    table_heap_ = table_info_->table_.get();
+
+    auto iter = table_heap_->MakeIterator();
+
+    // Initialize the rids_ vector and the rids_iter_ iterator
+    rids_.clear();
+    while (!iter.IsEnd()) {
+      rids_.push_back(iter.GetRID());
+      ++iter;
+    }
+    rids_iter_ = rids_.begin();
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-    for(; iter_->IsEnd(); ++(*iter_)){
-        // Get the tuple and the meta data
-        auto [meta, tup] = iter_->GetTuple();
-        
-        // Check if the tuple is deleted
-        if(meta.is_deleted_){
-            continue;
-        }
+    // Initialize the meta data of the tuple
+    TupleMeta meta{};
 
-        // Update the output value
-        *tuple = tup;
-        *rid = iter_->GetRID();
+    // Iterate through the table heap and find the next tuple that satisfies the predicate
+    do {
+      // If the iterator reaches the end, return false
+      if (rids_iter_ == rids_.end()) {
+        return false;
+      }
 
-        // Check if the tuple satisfies the predicate
-        if(plan_->filter_predicate_ != nullptr){
-            // Evaluate the predicate
-            auto eval = plan_->filter_predicate_->Evaluate(&tup, *schema_);
-            
-            if(!eval.GetAs<bool>()){
-                continue;
-            }
-        }
-
-        // Increment the iterator for next iteration
-        ++(*iter_);
-
-        return true;
-    }
-
-    return false;
+      // Get the tuple and the meta data of the tuple
+      meta = table_heap_->GetTupleMeta(*rids_iter_);
+      if (!meta.is_deleted_) {
+        *tuple = table_heap_->GetTuple(*rids_iter_).second;
+        *rid = *rids_iter_;
+      }
+      ++rids_iter_;
+      
+      // If the tuple is deleted or does not satisfy the predicate, continue the loop
+    } while (meta.is_deleted_ || (plan_->filter_predicate_ != nullptr &&
+                                  !plan_->filter_predicate_->Evaluate(tuple, table_info_->schema_).GetAs<bool>()));
+    return true;
 }
-
 }  // namespace bustub
