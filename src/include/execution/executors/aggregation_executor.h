@@ -85,24 +85,21 @@ class SimpleAggregationHashTable {
         case AggregationType::SumAggregate:
           if (result->aggregates_[i].IsNull()) {
             result->aggregates_[i] = input.aggregates_[i];
-          }
-          if (!input.aggregates_[i].IsNull()) {
+          } else if (!input.aggregates_[i].IsNull()) {
             result->aggregates_[i] = result->aggregates_[i].Add(input.aggregates_[i]);
           }
           break;
         case AggregationType::MinAggregate:
           if (result->aggregates_[i].IsNull()) {
             result->aggregates_[i] = input.aggregates_[i];
-          } 
-          if (!input.aggregates_[i].IsNull()) {
+          } else if (!input.aggregates_[i].IsNull()) {
             result->aggregates_[i] = result->aggregates_[i].Min(input.aggregates_[i]);
           }
           break;
         case AggregationType::MaxAggregate:
           if (result->aggregates_[i].IsNull()) {
             result->aggregates_[i] = input.aggregates_[i];
-          }
-          if (!input.aggregates_[i].IsNull()) {
+          } else if (!input.aggregates_[i].IsNull()) {
             result->aggregates_[i] = result->aggregates_[i].Max(input.aggregates_[i]);
           }
           break;
