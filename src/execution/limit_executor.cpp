@@ -31,7 +31,7 @@ void LimitExecutor::Init() {
     auto limit = plan_->GetLimit();
 
     // Fetch all the tuples from the child executor
-    while (child_executor_->Next(&tuple, &rid) && count < limit) {
+    while (count < limit && child_executor_->Next(&tuple, &rid)) {
         tuples_.emplace_back(tuple);
         count++;
     }
@@ -40,11 +40,12 @@ void LimitExecutor::Init() {
     if(!tuples_.empty()) {
         iter_ = tuples_.begin();
     }
+
 }
 
 auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // If the iterator reaches the end, return false
-    if (iter_ == tuples_.end()) {
+    if (tuples_.empty() || iter_ == tuples_.end()) {
         return false;
     }
 

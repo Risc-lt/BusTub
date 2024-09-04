@@ -114,6 +114,6 @@ class TopNExecutor : public AbstractExecutor {
   std::stack<Tuple> top_entries_;
 
   /** Size of the heap */
-  std::size_t heap_size_;
+  std::size_t heap_size_{0};
 };
 }  // namespace bustub

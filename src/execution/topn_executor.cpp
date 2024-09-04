@@ -11,7 +11,7 @@ TopNExecutor::TopNExecutor(ExecutorContext *exec_ctx, const TopNPlanNode *plan,
 void TopNExecutor::Init() {
     // Initialize the child executor and heap
     child_executor_->Init();
-    std::priority_queue<Tuple, std::vector<Tuple>, HeapComparator> heap;
+    std::priority_queue<Tuple, std::vector<Tuple>, HeapComparator> heap(HeapComparator(&GetOutputSchema(), plan_->GetOrderBy()));
 
     // Get the next tuple from the child executor
     Tuple tuple;

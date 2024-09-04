@@ -1,4 +1,5 @@
 #include "execution/executors/sort_executor.h"
+#include <iostream>
 #include <utility>
 
 namespace bustub {
