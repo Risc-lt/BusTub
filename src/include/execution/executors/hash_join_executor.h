@@ -13,7 +13,9 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "common/util/hash_util.h"
 #include "execution/executor_context.h"
@@ -23,8 +25,8 @@
 #include "storage/table/tuple.h"
 
 /**
-  * Construct HashJoinKey with hash_keys_ member variable
-  */
+ * Construct HashJoinKey with hash_keys_ member variable
+ */
 namespace bustub {
 
 /** HashJoinKey represents a key in an join operation */
@@ -49,8 +51,8 @@ struct HashJoinKey {
 }  // namespace bustub
 
 /**
-  * Implement std::hash on AggregateKey
-  */
+ * Implement std::hash on AggregateKey
+ */
 namespace std {
 template <>
 struct hash<bustub::HashJoinKey> {
@@ -69,8 +71,8 @@ struct hash<bustub::HashJoinKey> {
 }  // namespace std
 
 /**
-  * Implement HashJoinExecutor
-  */
+ * Implement HashJoinExecutor
+ */
 namespace bustub {
 /**
  * A simplified hash table that has all the necessary functionality for join.
@@ -78,10 +80,10 @@ namespace bustub {
 class SimpleHashJoinHashTable {
  public:
   /**
-    * Insert a key-value pair into the hash table.
-    * @param join_key The key to insert.
-    * @param tuple The value to insert.
-    */
+   * Insert a key-value pair into the hash table.
+   * @param join_key The key to insert.
+   * @param tuple The value to insert.
+   */
   void InsertKey(const HashJoinKey &join_key, const Tuple &tuple) {
     if (ht_.count(join_key) == 0) {
       std::vector<Tuple> tuple_vector;
@@ -150,8 +152,8 @@ class HashJoinExecutor : public AbstractExecutor {
  private:
   /**
    * Get the join key from the tuple for the left side of the join.
-    * @param tuple The tuple to get the join key from.
-    * @return The join key.
+   * @param tuple The tuple to get the join key from.
+   * @return The join key.
    */
   auto GetLeftJoinKey(const Tuple *tuple) -> HashJoinKey {
     std::vector<Value> values;
@@ -199,7 +201,6 @@ class HashJoinExecutor : public AbstractExecutor {
   /**  Flags for join status. */
   bool join_done_{false};
   bool left_next_{false};
-
 };
 
 }  // namespace bustub

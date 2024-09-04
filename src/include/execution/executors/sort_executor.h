@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "execution/executor_context.h"
@@ -28,7 +29,7 @@ namespace bustub {
  */
 class Comparator {
  public:
-  // Constructor 
+  // Constructor
   Comparator() { schema_ = nullptr; }
   Comparator(const Schema *schema, std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys)
       : schema_(schema), order_bys_(std::move(order_bys)) {}
@@ -66,7 +67,6 @@ class Comparator {
   /** The order-bys to sort the tuples */
   std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys_;
 };
-
 
 /**
  * The SortExecutor executor executes a sort.

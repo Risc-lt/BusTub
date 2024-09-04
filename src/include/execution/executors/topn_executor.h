@@ -25,12 +25,12 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
-/** 
-  * HeapComparator is a comparator class used to compare two tuples based on a schema and a set of order-bys.
-  */
+/**
+ * HeapComparator is a comparator class used to compare two tuples based on a schema and a set of order-bys.
+ */
 class HeapComparator {
  public:
- // Constructor
+  // Constructor
   HeapComparator() { schema_ = nullptr; }
   HeapComparator(const Schema *schema, std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys)
       : schema_(schema), order_bys_(std::move(order_bys)) {}
@@ -39,7 +39,7 @@ class HeapComparator {
     for (auto const &order_by : this->order_bys_) {
       // Get the order type
       const auto order_type = order_by.first;
-      
+
       // Get the value of the expression for the two tuples
       AbstractExpressionRef expr = order_by.second;
       Value v1 = expr->Evaluate(&t1, *schema_);

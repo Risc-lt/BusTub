@@ -13,6 +13,8 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "execution/executor_context.h"
@@ -140,7 +142,7 @@ class PartitionHashTable {
   auto End() { return map_->end(); }
 
  private:
- /** The hash table that stores the partitioned results */  
+  /** The hash table that stores the partitioned results */
   std::unique_ptr<std::unordered_map<PartitionKey, Value>> map_;
   /** The type of the window function */
   WindowFunctionType type_;
@@ -222,8 +224,7 @@ class WindowFunctionExecutor : public AbstractExecutor {
   /** Partition by */
   using WindowFunction = WindowFunctionPlanNode::WindowFunction;
   using Partition = std::vector<AbstractExpressionRef>;
-  void PartitionBy(const Tuple &tuple, const WindowFunction &wf,
-                   uint32_t place);
+  void PartitionBy(const Tuple &tuple, const WindowFunction &wf, uint32_t place);
 
   void PartitionAll();
 
