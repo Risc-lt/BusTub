@@ -15,31 +15,6 @@ inline auto IsTxnCommited(txn_id_t id) -> bool { return (id & TXN_START_ID) == 0
 
 inline auto IsTempTs(timestamp_t ts) -> bool { return (ts & TXN_START_ID) != 0; }
 
-/**
- * @brief replace the changed values, use the info of log without checking is_deleted.
- */
-void ApplyModifiedTo(std::vector<Value> &values,  //
-                     const Schema *schema, const UndoLog &log);
-
-/**
- * @brief use a schema and its corrosponding tuple to construct values
- */
-auto ReconstructValuesFromTuple(const Schema *schema,  //
-                                const Tuple &tuple) -> std::vector<Value>;
-
-/**
- * @brief use the base tuple and its meta info to reconstruct the tuple after applying undo logs
- */
-auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
-                      const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple>;
-
-/**
- * @brief rebuild tuple, iterate all log chain, return after its ts = read_ts.
- * @return the tuple is deleted or not.
- */
-auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
-                    RID rid, TupleMeta &meta, const Schema *schema) -> bool;
-
 class VersionChainIter {
  public:
   VersionChainIter(TransactionManager *txn_mgr, const RID rid) : txn_mgr_{txn_mgr} {
@@ -71,6 +46,31 @@ class VersionChainIter {
   UndoLink link_;
   UndoLog log_;
 };
+
+/**
+ * @brief replace the changed values, use the info of log without checking is_deleted.
+ */
+void ApplyModifications(std::vector<Value> &values,  //
+                     const Schema *schema, const UndoLog &log);
+
+/**
+ * @brief use a schema and its corrosponding tuple to construct values
+ */
+auto ReconstructValuesFromTuple(const Schema *schema,  //
+                                const Tuple &tuple) -> std::vector<Value>;
+
+/**
+ * @brief use the base tuple and its meta info to reconstruct the tuple after applying undo logs
+ */
+auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
+                      const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple>;
+
+/**
+ * @brief rebuild tuple, iterate all log chain, return after its ts = read_ts.
+ * @return the tuple is deleted or not.
+ */
+auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
+                    RID rid, TupleMeta &meta, const Schema *schema) -> bool;
 
 
 /**

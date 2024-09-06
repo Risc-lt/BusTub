@@ -124,7 +124,7 @@ auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
         v = ValueFactory::GetNullValueByType(v.GetTypeId());
       }
     } else {
-      ApplyModifiedTo(result, schema, log);
+      ApplyModifications(result, schema, log);
     }
 
     if (log.ts_ <= read_ts || curr_txn_id == txn_id) {
