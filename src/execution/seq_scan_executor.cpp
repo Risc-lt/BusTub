@@ -16,7 +16,10 @@
 namespace bustub {
 
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
-    : AbstractExecutor(exec_ctx), plan_(plan) {
+    : AbstractExecutor(exec_ctx), plan_(plan), iter_(nullptr) {
+      // Get the table metadata from the catalog
+      table_info_ = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
+
       // Get the transaction from the executor context
       txn_ = exec_ctx->GetTransaction();
 
@@ -27,20 +30,16 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 }
 
 void SeqScanExecutor::Init() {
-  // Initialize the table heap and the iterator
-  table_info_ = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
-  table_heap_ = table_info_->table_.get();
+  // Initialize the iterator
+  iter_ = std::make_unique<TableIterator>(table_info_->table_->MakeIterator());
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  // Create a new iterator
-  auto iter = std::make_unique<TableIterator>(table_heap_->MakeIterator());
-
   // Iterate through the table
-  for (; !iter->IsEnd(); ++(*iter)) {
+  for (; !iter_->IsEnd(); ++(*iter_)) {
     // Get the tuple and the RID
-    auto [m, t]{iter->GetTuple()};
-    *rid = iter->GetRID();
+    auto [m, t]{iter_->GetTuple()};
+    *rid = iter_->GetRID();
 
     // Reconstruct the tuple and check if it is deleted
     bool deleted = ReconstructFor(exec_ctx_->GetTransactionManager(),  
@@ -59,12 +58,12 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     }
 
     // If the tuple is not deleted and the predicate is satisfied, return the tuple
-    ++(*iter);
+    ++(*iter_);
     *tuple = t;
 
     return true;
   }
-  
+
   return false;
 }
 

@@ -57,7 +57,9 @@ class SeqScanExecutor : public AbstractExecutor {
 
   /** The table metadata */
   TableInfo *table_info_;
-  TableHeap *table_heap_;
+
+  /** The iterator for the table */
+  std::unique_ptr<TableIterator> iter_;
 
   /** The transaction */
   Transaction *txn_;
