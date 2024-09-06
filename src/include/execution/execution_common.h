@@ -50,6 +50,29 @@ class VersionChainIter {
 };
 
 /**
+ * @brief Detect conflict. After running the func,
+ *        you NEED ONLY to (1) check self modify, do something in this senario.
+ *                         (2) runs modification.
+ */
+inline void ConflictDetect(TransactionManager *txn_mgr, Transaction *txn,  // NOLINT
+                           const TupleMeta &meta, RID rid, const std::string &type) {
+  if (IsTempTs(meta.ts_)) {
+    if (txn->GetTransactionTempTs() != meta.ts_) {
+      txn->SetTainted();
+      throw ExecutionException{type + " uncommited conflicting occured."};
+    }
+  } else {  // Commited ts
+    if (txn->GetReadTs() < meta.ts_) {
+      // Will this possible?
+      // Yes. txn A, B start at the same time, but B modified and commit first.
+      // In this case, A cannot modify anymore.
+      txn->SetTainted();
+      throw ExecutionException{type + " commited conflicting occured."};
+    }
+  }
+}
+
+/**
  * @brief replace the changed values, use the info of log without checking is_deleted.
  */
 void ApplyModifications(std::vector<Value> &values,  //
