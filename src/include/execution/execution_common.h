@@ -10,9 +10,27 @@
 
 namespace bustub {
 
+/**
+ * @brief replace the changed values, use the info of log without checking is_deleted.
+ */
+void ApplyModifiedTo(std::vector<Value> &values,  //
+                     const Schema *schema, const UndoLog &log);
+
+/**
+ * @brief use a schema and its corrosponding tuple to construct values
+ */
+auto ReconstructValuesFromTuple(const Schema *schema,  //
+                                const Tuple &tuple) -> std::vector<Value>;
+
+/**
+ * @brief use the base tuple and its meta info to reconstruct the tuple after applying undo logs
+ */
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple>;
 
+/**
+ * @brief print the debug info of the transaction manager
+ */
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap);
 
