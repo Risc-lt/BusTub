@@ -6,9 +6,14 @@
 #include "catalog/catalog.h"
 #include "catalog/schema.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
+
+inline auto IsTxnCommited(txn_id_t id) -> bool { return (id & TXN_START_ID) == 0; }
+
+inline auto IsTempTs(timestamp_t ts) -> bool { return (ts & TXN_START_ID) != 0; }
 
 /**
  * @brief replace the changed values, use the info of log without checking is_deleted.
@@ -27,6 +32,46 @@ auto ReconstructValuesFromTuple(const Schema *schema,  //
  */
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple>;
+
+/**
+ * @brief rebuild tuple, iterate all log chain, return after its ts = read_ts.
+ * @return the tuple is deleted or not.
+ */
+auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
+                    RID rid, TupleMeta &meta, const Schema *schema) -> bool;
+
+class VersionChainIter {
+ public:
+  VersionChainIter(TransactionManager *txn_mgr, const RID rid) : txn_mgr_{txn_mgr} {
+    auto link_opt = txn_mgr->GetUndoLink(rid);
+    if (!link_opt.has_value()) {
+      throw Exception{fmt::format("Cannot get link from the rid{}/{}",  
+                                  rid.GetPageId(),                      
+                                  rid.GetSlotNum())};
+    }
+    link_ = link_opt.value();
+  }
+
+  void Next() {
+    link_ = log_.prev_version_;
+    log_.prev_version_.prev_txn_ = INVALID_TXN_ID;
+  }
+
+  auto Get() {
+    log_ = txn_mgr_->GetUndoLog(link_);
+    return log_;
+  }
+
+  auto GetLink() { return link_; }
+
+  auto IsEnd() { return !link_.IsValid(); }
+
+ private:
+  TransactionManager *txn_mgr_;
+  UndoLink link_;
+  UndoLog log_;
+};
+
 
 /**
  * @brief print the debug info of the transaction manager

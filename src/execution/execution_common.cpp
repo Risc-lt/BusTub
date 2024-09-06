@@ -95,6 +95,48 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
   return Tuple{std::move(values), schema};
 }
 
+auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
+                    RID rid, TupleMeta &meta, const Schema *schema) -> bool {
+  // Get the read timestamp and transaction ID
+  auto read_ts = txn->GetReadTs();
+  auto txn_id = txn->GetTransactionId();
+  auto result = ReconstructValuesFromTuple(schema, *tuple);
+
+  // If the tuple is not temporary, check if the timestamp is less than or equal to the read timestamp
+  if (!IsTempTs(meta.ts_)) {
+    if (meta.ts_ <= read_ts) {
+      return meta.is_deleted_;
+    }
+  } else {
+    if (meta.ts_ == txn->GetTransactionTempTs()) {
+      return meta.is_deleted_;
+    }
+  }
+
+  // Iterate through the version chain and check if the tuple is deleted
+  for (VersionChainIter iter{txn_mgr, rid}; !iter.IsEnd(); iter.Next()) {
+    auto log = iter.Get();
+    BUSTUB_ASSERT(!IsTempTs(log.ts_), "log.ts couldn't be a temp txn timestamp");
+    auto curr_txn_id = iter.GetLink().prev_txn_;
+
+    if (log.is_deleted_) {
+      for (auto &v : result) {
+        v = ValueFactory::GetNullValueByType(v.GetTypeId());
+      }
+    } else {
+      ApplyModifiedTo(result, schema, log);
+    }
+
+    if (log.ts_ <= read_ts || curr_txn_id == txn_id) {
+      if (!log.is_deleted_) {
+        *tuple = Tuple{result, schema};
+      }
+      return log.is_deleted_;
+    }
+  }
+  return true;
+}
+
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap) {
   // always use stderr for printing logs...

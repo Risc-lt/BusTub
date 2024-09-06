@@ -16,6 +16,7 @@
 
 #include "catalog/catalog.h"
 #include "catalog/schema.h"
+#include "concurrency/transaction.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/seq_scan_plan.h"
@@ -58,8 +59,7 @@ class SeqScanExecutor : public AbstractExecutor {
   TableInfo *table_info_;
   TableHeap *table_heap_;
 
-  /** The RIDs of the table */
-  std::vector<RID> rids_;
-  std::vector<RID>::iterator rids_iter_;
+  /** The transaction */
+  Transaction *txn_;
 };
 }  // namespace bustub
