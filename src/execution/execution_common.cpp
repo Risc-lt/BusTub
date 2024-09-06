@@ -57,7 +57,7 @@ void ApplyModifications(std::vector<Value> &values,
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
   // if the base tuple is deleted or undo_logs are empty, return nullopt
-  if ( base_meta.is_deleted_ || undo_logs.empty()) {
+  if ( base_meta.is_deleted_ && undo_logs.empty()) {
     return std::nullopt;
   }
 
@@ -137,15 +137,78 @@ auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
   return true;
 }
 
-void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
-               TableHeap *table_heap) {
-  // always use stderr for printing logs...
-  fmt::println(stderr, "debug_hook: {}", info);
+void PutHeader(std::stringstream &ss, RID rid, const TupleMeta &meta,  //
+               const Tuple &tuple, const Schema *schema) {
+  auto rid_info = fmt::format("RID={}/{}", rid.GetPageId(), rid.GetSlotNum());
+  std::string txn_info;
+  std::string tuple_info;
+  if ((meta.ts_ & TXN_START_ID) != 0) {
+    txn_info = fmt::format("ts=txn{}", meta.ts_ & ~(TXN_START_ID));
+  } else {
+    txn_info = fmt::format("ts={}", meta.ts_);
+  }
 
-  fmt::println(
-      stderr,
-      "You see this line of text because you have not implemented `TxnMgrDbg`. You should do this once you have "
-      "finished task 2. Implementing this helper function will save you a lot of time for debugging in later tasks.");
+  if (meta.is_deleted_) {
+    tuple_info = "<del>";
+  } else {
+    tuple_info = tuple.ToString(schema);
+  }
+  ss << rid_info << ' ' << txn_info << ' ' << tuple_info << '\n';
+}
+
+void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr,  //
+               const TableInfo *table_info, TableHeap *table_heap) {
+  // always use stderr for printing logs...
+  std::stringstream ss;
+  fmt::println(stderr, "debug_hook: {}\n", info);
+
+  for (auto iter = table_heap->MakeIterator(); !iter.IsEnd(); ++iter) {
+    auto rid = iter.GetRID();
+    auto [meta, tuple] = iter.GetTuple();
+    std::vector<Value> values = ReconstructValuesFromTuple(&table_info->schema_, tuple);
+    // header
+    PutHeader(ss, rid, meta, tuple, &table_info->schema_);
+    // chain
+    auto link_opt = txn_mgr->GetUndoLink(rid);
+    if (!link_opt.has_value()) {
+      throw Exception{fmt::format("Cannot get link from the rid{}/{}",  //
+                                  rid.GetPageId(),                      //
+                                  rid.GetSlotNum())};
+    }
+    for (VersionChainIter iter{txn_mgr, rid}; !iter.IsEnd(); iter.Next()) {
+      auto link = iter.GetLink();
+      if (txn_mgr->txn_map_.find(link.prev_txn_) == txn_mgr->txn_map_.end()) {
+        ss << "remained will not show since it GCed\n";
+        break;
+      }
+      auto log = iter.Get();
+      if (log.is_deleted_) {
+        for (auto &v : values) {
+          v = Value{};
+        }
+        ss << fmt::format("  txn{}@{} <del> ts={}\n", GetTxnId(link.prev_txn_),  //
+                          link.prev_log_idx_, log.ts_);
+      } else {
+        ApplyModifications(values, &table_info->schema_, log);
+        auto size = log.modified_fields_.size();
+        ss << fmt::format("  txn{}@{} ", GetTxnId(link.prev_txn_), link.prev_log_idx_);
+        ss << '(';
+        for (uint32_t i = 0; i < size; i++) {
+          if (log.modified_fields_[i]) {
+            ss << values[i].ToString();
+          }
+          if (i + 1 == size) {
+            ss << ')';
+          } else {
+            ss << ',';
+          }
+        }
+        ss << fmt::format(" ts={}\n", log.ts_);
+      }
+    }
+  }
+
+  fmt::println(stderr, "{}", ss.str());
 
   // We recommend implementing this function as traversing the table heap and print the version chain. An example output
   // of our reference solution:

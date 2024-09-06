@@ -15,6 +15,8 @@ inline auto IsTxnCommited(txn_id_t id) -> bool { return (id & TXN_START_ID) == 0
 
 inline auto IsTempTs(timestamp_t ts) -> bool { return (ts & TXN_START_ID) != 0; }
 
+inline auto GetTxnId(txn_id_t id) { return id & ~TXN_START_ID; }
+
 class VersionChainIter {
  public:
   VersionChainIter(TransactionManager *txn_mgr, const RID rid) : txn_mgr_{txn_mgr} {
@@ -71,7 +73,6 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
  */
 auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
                     RID rid, TupleMeta &meta, const Schema *schema) -> bool;
-
 
 /**
  * @brief print the debug info of the transaction manager
