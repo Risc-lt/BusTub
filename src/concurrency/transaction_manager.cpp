@@ -42,7 +42,8 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
   auto *txn_ref = txn.get();
   txn_map_.insert(std::make_pair(txn_id, std::move(txn)));
 
-  // TODO(fall2023): set the timestamps here. Watermark updated below.
+  timestamp_t read_ts = last_commit_ts_;
+  txn_ref->read_ts_ = read_ts;
 
   running_txns_.AddTxn(txn_ref->read_ts_);
   return txn_ref;
@@ -52,8 +53,6 @@ auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
 
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
-
-  // TODO(fall2023): acquire commit ts!
 
   if (txn->state_ != TransactionState::RUNNING) {
     throw Exception("txn not in running state");
@@ -67,13 +66,27 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
     }
   }
 
-  // TODO(fall2023): Implement the commit logic!
-
   std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
 
-  // TODO(fall2023): set commit timestamp + update last committed timestamp here.
+  txn->commit_ts_ = ++last_commit_ts_;
 
   txn->state_ = TransactionState::COMMITTED;
+
+  for (auto &[tid, set] : txn->write_set_){
+    for (auto &rid : set){
+      auto table_info = catalog_->GetTable(tid);
+      if (table_info == nullptr){
+        throw Exception("table not found");
+      }
+
+      auto &table = table_info->table_;
+      auto meta = table->GetTupleMeta(rid);
+      meta.ts_ = txn->commit_ts_;
+
+      table->UpdateTupleMeta(meta, rid);
+    }
+  }
+
   running_txns_.UpdateCommitTs(txn->commit_ts_);
   running_txns_.RemoveTxn(txn->read_ts_);
 
