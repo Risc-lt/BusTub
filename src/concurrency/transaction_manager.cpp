@@ -105,6 +105,67 @@ void TransactionManager::Abort(Transaction *txn) {
   running_txns_.RemoveTxn(txn->read_ts_);
 }
 
-void TransactionManager::GarbageCollection() { UNIMPLEMENTED("not implemented"); }
+void TransactionManager::GarbageCollection() {
+  std::unordered_set<RID> write_set;
+  std::unordered_set<txn_id_t> has_accessible_log_txn;
+
+  // Get the watermark and print out for debugging
+  auto watermark = GetWatermark();
+  fmt::println(stderr, "Watermark {}, {} txn in GC", watermark, txn_map_.size());
+
+  // Iterate all the write set to find out the txn that has the latest log
+  const auto &heap = catalog_->GetTable(catalog_->GetTableNames().at(0))->table_;
+  {
+    // Record all the RIDs that have been written by any txn
+    std::shared_lock l{txn_map_mutex_};
+    for (const auto &[_, txn] : txn_map_) {
+      for (const auto &[_, set] : txn->GetWriteSets()) {
+        for (const auto &rid : set) {
+          write_set.insert(rid);
+        }
+      }
+    }
+
+    // Iterate all the RID to find out the txn that has the latest log
+    for (auto &rid : write_set) {
+      auto meta = heap->GetTupleMeta(rid);
+      if (meta.ts_ <= watermark) {
+        continue;
+      }
+      for (VersionChainIter iter{this, rid}; !iter.IsEnd(); iter.Next()) {
+        auto txn_iter = txn_map_.find(iter.GetLink().prev_txn_);
+        if (txn_iter == txn_map_.end()) {
+          continue;
+        }
+        auto ts = iter.Get().ts_;
+        has_accessible_log_txn.insert(iter.GetLink().prev_txn_);
+        if (ts <= watermark) {
+          // The remains should not be iterated.
+          break;
+        }
+      }
+    }
+  }
+
+  {
+    std::unique_lock l{txn_map_mutex_};
+    for (auto i = txn_map_.begin(); i != txn_map_.end();) {
+      if (i->second->GetTransactionState() == TransactionState::RUNNING) {
+        i++;
+        continue;
+      }
+      if (i->second->GetTransactionState() == TransactionState::TAINTED) {
+        i++;
+        continue;
+      }
+      if (has_accessible_log_txn.find(i->first) != has_accessible_log_txn.end()) {
+        i++;
+        continue;
+      }
+      fmt::println(stderr, "txn_id={:x} GCed", i->second->GetTransactionId());
+      txn_map_.erase(i++);
+    }
+  }
+}
 
 }  // namespace bustub
