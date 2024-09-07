@@ -49,7 +49,88 @@ auto TransactionManager::Begin(IsolationLevel isolation_level) -> Transaction * 
   return txn_ref;
 }
 
-auto TransactionManager::VerifyTxn(Transaction *txn) -> bool { return true; }
+auto TransactionManager::CheckConflict(const Transaction *txn, const RID &rid,  // NOLINT
+                                       const TableInfo *table_info) -> bool {
+  BUSTUB_ASSERT(txn->GetTransactionState() == TransactionState::RUNNING,  // NOLINT
+                "txn state shall be RUNNING");
+  auto [meta, tuple] = table_info->table_->GetTuple(rid);
+  if (IsTempTs(meta.ts_) && meta.ts_ == txn->GetTransactionTempTs()) {
+    // self modify
+    return false;
+  }
+  auto result = ReconstructValuesFromTuple(&table_info->schema_, tuple);
+  auto read_ts = txn->GetReadTs();
+  auto watermark = GetWatermark();
+  auto run_check = [table_info, txn, &result]() -> bool {
+    for (const auto &[oid, preds] : txn->scan_predicates_) {
+      if (oid != table_info->oid_) {
+        continue;
+      }
+      Tuple temp{result, &table_info->schema_};
+      for (const auto &expr : preds) {
+        if (expr->Evaluate(&temp, table_info->schema_).GetAs<bool>()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  if (run_check()) {
+    return true;
+  }
+  for (VersionChainIter iter{this, rid}; !iter.IsEnd(); iter.Next()) {
+    auto log = iter.Get();
+    if (log.is_deleted_) {
+      for (auto &v : result) {
+        v = ValueFactory::GetNullValueByType(v.GetTypeId());
+      }
+    } else {
+      ApplyModifications(result, &table_info->schema_, log);
+    }
+    if (run_check()) {
+      return true;
+    }
+    if (watermark >= log.ts_ || read_ts >= log.ts_) {
+      // The end of valid chain or the txn can't read older version anymore.
+      break;
+    }
+  }
+  return false;
+}
+
+auto TransactionManager::VerifyTxn(Transaction *txn) -> bool {
+  if (txn->GetWriteSets().empty()) {
+    return true;
+  }
+  std::unordered_map<table_oid_t, std::unordered_set<RID>> oid_rids;
+  std::unique_lock lck{txn_map_mutex_};
+  for (auto &[id, another] : txn_map_) {
+    if (another->GetWriteSets().empty()) {
+      continue;
+    }
+    if (another->GetTransactionState() != TransactionState::COMMITTED) {
+      continue;
+    }
+    if (another->GetCommitTs() <= txn->GetReadTs()) {
+      continue;
+    }
+    // The commited timestamp, and its commit ts > read ts.
+    for (const auto &[oid, rids] : another->GetWriteSets()) {
+      oid_rids[oid].insert(rids.begin(), rids.end());
+    }
+  }
+  lck.unlock();
+  for (const auto &[oid, rids] : oid_rids) {
+    auto table_info = catalog_->GetTable(oid);
+    for (auto rid : rids) {
+      if (CheckConflict(txn, rid, table_info)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 auto TransactionManager::Commit(Transaction *txn) -> bool {
   std::unique_lock<std::mutex> commit_lck(commit_mutex_);
@@ -98,7 +179,66 @@ void TransactionManager::Abort(Transaction *txn) {
     throw Exception("txn not in running / tainted state");
   }
 
-  // TODO(fall2023): Implement the abort logic!
+  for (const auto &[oid, rids] : txn->GetWriteSets()) {
+    auto table_info = catalog_->GetTable(oid);
+    const auto &schema = table_info->schema_;
+    for (auto rid : rids) {
+      // Dead lock fix:
+      //   1. unique lock aquired in commit, and then it fetch page lock
+      //   2. page lock fetched in abort, and fetch shared log in iter.Next, etc.
+      //
+      // To fix it:
+      //   1. Get all log info first
+      //   2. Write to page
+      //   3. Write to txn_mgr
+      // We need 1 log.
+      VersionChainIter iter{this, rid};
+      if (iter.IsEnd()) {
+        auto guard = table_info->table_->AcquireTablePageWriteLock(rid);
+        auto page = guard.AsMut<TablePage>();
+        auto [meta, tpl] = table_info->table_->GetTupleWithLockAcquired(rid, page);
+        BUSTUB_ASSERT(meta.ts_ == txn->GetTransactionTempTs(),  // NOLINT
+                      "ts in meta should equal to temp ts");
+        meta.is_deleted_ = true;
+        meta.ts_ = 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        table_info->table_->UpdateTupleInPlaceWithLockAcquired(meta, tpl, rid, page);
+      } else {
+        auto log = iter.Get();  // The place where
+        iter.Next();            // cause a dead lock.
+        auto guard = table_info->table_->AcquireTablePageWriteLock(rid);
+        auto page = guard.AsMut<TablePage>();
+        auto [meta, tpl] = table_info->table_->GetTupleWithLockAcquired(rid, page);
+        /* For debug use.
+         * if (meta.ts_ != txn->GetTransactionTempTs()) {
+         *   // another dead lock. page locked before, and lock again later.
+         *   guard.Drop();
+         *   TxnMgrDbg(fmt::format("{:x} {:x} {}", meta.ts_, // NOLINT
+         *                txn->GetTransactionTempTs(), rid.ToString()),
+         *             this, table_info, table_info->table_.get());
+         * }
+         */
+        BUSTUB_ASSERT(meta.ts_ == txn->GetTransactionTempTs(),  // NOLINT
+                      "ts in meta should equal to temp ts");
+        auto values = ReconstructValuesFromTuple(&table_info->schema_, tpl);
+        if (log.is_deleted_) {
+          for (auto &v : values) {
+            v = ValueFactory::GetNullValueByType(v.GetTypeId());
+          }
+          meta.is_deleted_ = true;
+        } else {
+          ApplyModifications(values, &table_info->schema_, log);
+          meta.is_deleted_ = false;
+        }
+        meta.ts_ = log.ts_;
+        tpl = Tuple{values, &schema};  // damn it, forgot to update!
+        table_info->table_->UpdateTupleInPlaceWithLockAcquired(meta, tpl, rid, page);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        UpdateUndoLink(rid, iter.GetLink());
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
 
   std::unique_lock<std::shared_mutex> lck(txn_map_mutex_);
   txn->state_ = TransactionState::ABORTED;

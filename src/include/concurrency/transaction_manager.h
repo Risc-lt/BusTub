@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "catalog/catalog.h"
 #include "catalog/schema.h"
 #include "common/config.h"
 #include "concurrency/transaction.h"
@@ -153,6 +154,12 @@ class TransactionManager {
   /** @brief Verify if a txn satisfies serializability. We will not test this function and you can change / remove it as
    * you want. */
   auto VerifyTxn(Transaction *txn) -> bool;
+
+  /** @brief For serializable check. The property you must hold:
+   *         1. txn should be running state
+   */
+  auto CheckConflict(const Transaction *txn, const RID &rid,  // NOLINT
+                     const TableInfo *table_info) -> bool;
 };
 
 }  // namespace bustub
