@@ -60,15 +60,35 @@ class UpdateExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
  private:
+  /** Update indices
+   *  @param new_v the tuple inserted.
+   *  @param old_v the tuple must be removed.
+   *  @param rid the corresponding rid.
+   *  @param txn the transaction.
+   */
+  void UpdateIndices(std::vector<Value> &new_v, std::vector<Value> &old_v, RID rid, Transaction *txn);
+
+  void InsertLog(TupleMeta &meta, RID rid, TransactionManager *txn_mgr,     //
+                               Transaction *txn, std::vector<Value> &old_v, //
+                               std::vector<Value> &new_v);
+
+  void UpdateLog(TupleMeta &meta, RID rid, TransactionManager *txn_mgr,     //
+                               Transaction *txn, std::vector<Value> &old_v, //
+                               std::vector<Value> &new_v);
+
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_;
 
   /** Metadata identifying the table that should be updated */
   const TableInfo *table_info_;
 
+  /** Indices coresponding the table */
+  std::vector<IndexInfo *> indices_;
+
   /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
 
-  bool is_updated_{false};
+  /** The update transaction */
+  Transaction *txn_;
 };
 }  // namespace bustub

@@ -137,6 +137,58 @@ auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
   return true;
 }
 
+void GenerateDeleteLogSmart(TupleMeta &meta, Tuple *tuple, RID rid,         
+                            const TableInfo *table_info, Transaction *txn,  
+                            TransactionManager *txn_mgr) {
+  // If the tuple is not temporary, check if the timestamp is less than the transaction timestamp
+  if (txn->GetTransactionTempTs() != meta.ts_) {
+    // Generate an undo log
+    UndoLog log;
+    log.is_deleted_ = meta.is_deleted_;
+    log.modified_fields_.resize(table_info->schema_.GetColumnCount(), true);
+    log.ts_ = meta.ts_;
+    log.tuple_ = std::move(*tuple);
+
+    // Get the undo link and update the undo log
+    auto link = txn_mgr->GetUndoLink(rid);
+    if (link.has_value()) {
+      log.prev_version_ = *link;
+    }
+    txn_mgr->UpdateUndoLink(rid, txn->AppendUndoLog(log));
+  }
+
+  // Mark the tuple as deleted and update the timestamp
+  meta.is_deleted_ = true;
+  meta.ts_ = txn->GetTransactionTempTs();
+  table_info->table_->UpdateTupleMeta(meta, rid);
+}
+
+void GenerateDeleteLogInPage(TupleMeta &meta, Tuple *tuple, RID rid,         
+                             const TableInfo *table_info, Transaction *txn,  
+                             TransactionManager *txn_mgr, TablePage *page) {
+  if (txn->GetTransactionTempTs() != meta.ts_) {
+    // Generate an undo log
+    UndoLog log;
+    log.is_deleted_ = meta.is_deleted_;
+    log.modified_fields_.resize(table_info->schema_.GetColumnCount(), true);
+    log.ts_ = meta.ts_;
+    log.tuple_ = std::move(*tuple);
+
+    // Get the undo link and update the undo log
+    auto link = txn_mgr->GetUndoLink(rid);
+    if (link.has_value()) {
+      log.prev_version_ = *link;
+    }
+    txn_mgr->UpdateUndoLink(rid, txn->AppendUndoLog(log));
+  }
+
+  // Mark the tuple as deleted and update the timestamp
+  meta.is_deleted_ = true;
+  meta.ts_ = txn->GetTransactionTempTs();
+  *tuple = page->GetTuple(rid).second;
+  page->UpdateTupleMeta(meta, rid);
+}
+
 void PutHeader(std::stringstream &ss, RID rid, const TupleMeta &meta,  //
                const Tuple &tuple, const Schema *schema) {
   auto rid_info = fmt::format("RID={}/{}", rid.GetPageId(), rid.GetSlotNum());

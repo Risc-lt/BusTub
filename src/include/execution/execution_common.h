@@ -73,6 +73,32 @@ inline void ConflictDetect(TransactionManager *txn_mgr, Transaction *txn,  // NO
 }
 
 /**
+ * @brief this func will
+ *        (1) detect self opration, will perform a replace if it is.
+ *        (2) update meta in table info.
+ *        something not do
+ *        (1) update write set.
+ *        (2) conflict detect.
+ *        (3) any operation of index.
+ */
+void GenerateDeleteLogSmart(TupleMeta &meta, Tuple *tuple, RID rid,         // NOLINT
+                            const TableInfo *table_info, Transaction *txn,  // NOLINT
+                            TransactionManager *txn_mgr);
+
+/**
+ * @brief similar to GenerateDeleteLogSmart, but with a lock-guarded page.
+ */
+void GenerateDeleteLogInPage(TupleMeta &meta, Tuple *tuple, RID rid,         // NOLINT
+                             const TableInfo *table_info, Transaction *txn,  // NOLINT
+                             TransactionManager *txn_mgr, TablePage *page);
+
+/**
+ * @brief Insert a tuple with index update.
+ */
+void InsertWithIndexUpdate();
+
+
+/**
  * @brief replace the changed values, use the info of log without checking is_deleted.
  */
 void ApplyModifications(std::vector<Value> &values,  //
