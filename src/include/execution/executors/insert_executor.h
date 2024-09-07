@@ -53,19 +53,24 @@ class InsertExecutor : public AbstractExecutor {
    * NOTE: InsertExecutor::Next() does not use the `rid` out-parameter.
    * NOTE: InsertExecutor::Next() returns true with number of inserted rows produced only once.
    */
-  auto Next(Tuple *tuple, RID *rid) -> bool override;
+  auto Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool override;
 
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
   /**
-   * @brief Insert new indexes for the given RID.
+   * Insert the indices from tuple.
    */
-  void InsertNewIndexes(RID rid);
+  void InsertNewIndices(RID rid);
+  std::vector<Value> index_temp_;
+  std::vector<Tuple> keys_;
+  std::vector<RID> rids_;
+  void BuildIndices(Tuple *tuple);
+  auto GetRID() -> RID;
 
   /**
-   * @brief Insert a new tuple into the table.  
+   * Insert a tuple.
    */
   auto InsertNewTuple(const Tuple *tuple) -> RID;
 
@@ -73,45 +78,24 @@ class InsertExecutor : public AbstractExecutor {
    * @brief the txn insert to the deleted by it self.
    */
   void UpdateSelfOperation(TupleMeta &meta, RID rid, Tuple *tuple);
-
   /**
    * @brief the txn insert to the commited deleted.
    */
   void UpdateDeleted(TupleMeta &meta, RID rid, Tuple *tuple);
 
-  /**
-   * @brief build the indexes for the 1st time.
-   */
-  void BuildIndexes(Tuple *tuple);
-
-  /**
-   * @brief get the RID for the tuple.  
-   */
-  auto GetRID() -> RID;
-
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
 
-  /** The child executor from which inserted tuples are pulled */
-  std::unique_ptr<AbstractExecutor> child_executor_;
-
   TableInfo *table_info_;
+  std::vector<IndexInfo *> indices_;
 
-  /** The keys and RIDs to be inserted */
-  std::vector<Tuple> keys_;
-  std::vector<RID> rids_;
-
-  /** The indexes to be inserted */
-  std::vector<Value> index_temp_;
-  std::vector<IndexInfo *> indexes_;
-
-  /** The transaction */
+  const AbstractPlanNode *node_;
   Transaction *txn_;
   TransactionManager *txn_mgr_;
 
   /** The schema for return a value */
   Schema return_schema_;
-  
+  std::unique_ptr<AbstractExecutor> child_executor_;
 };
 
 }  // namespace bustub
