@@ -16,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/catalog.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/delete_plan.h"
@@ -57,12 +56,26 @@ class DeleteExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
+  /** Delete indices
+   *  @param old_v the tuple must be removed.
+   *  @param rid the corresponding rid.
+   *  @param txn the transaction.
+   */
+  void DeleteIndices(std::vector<Value> &old_v, RID rid, Transaction *txn);
+
   /** The delete plan node to be executed */
   const DeletePlanNode *plan_;
 
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
 
-  bool is_deleted_{false};
+  /** Metadata identifying the table that should be updated */
+  const TableInfo *table_info_;
+
+  /** Indices coresponding the table */
+  std::vector<IndexInfo *> indices_;
+
+  /** The update transaction */
+  Transaction *txn_;
 };
 }  // namespace bustub
