@@ -153,10 +153,10 @@ auto TransactionManager::Commit(Transaction *txn) -> bool {
 
   txn->state_ = TransactionState::COMMITTED;
 
-  for (auto &[tid, set] : txn->write_set_){
-    for (auto &rid : set){
+  for (auto &[tid, set] : txn->write_set_) {
+    for (auto &rid : set) {
       auto table_info = catalog_->GetTable(tid);
-      if (table_info == nullptr){
+      if (table_info == nullptr) {
         throw Exception("table not found");
       }
 

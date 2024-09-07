@@ -17,16 +17,16 @@ namespace bustub {
 
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
     : AbstractExecutor(exec_ctx), plan_(plan), iter_(nullptr) {
-      // Get the table metadata from the catalog
-      table_info_ = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
+  // Get the table metadata from the catalog
+  table_info_ = GetExecutorContext()->GetCatalog()->GetTable(plan_->GetTableOid());
 
-      // Get the transaction from the executor context
-      txn_ = exec_ctx->GetTransaction();
+  // Get the transaction from the executor context
+  txn_ = exec_ctx->GetTransaction();
 
-      // If the plan has a predicate, append the predicate to the transaction
-      if (plan_->filter_predicate_ != nullptr) {
-        txn_->AppendScanPredicate(table_info_->oid_, plan_->filter_predicate_);
-      }
+  // If the plan has a predicate, append the predicate to the transaction
+  if (plan_->filter_predicate_ != nullptr) {
+    txn_->AppendScanPredicate(table_info_->oid_, plan_->filter_predicate_);
+  }
 }
 
 void SeqScanExecutor::Init() {
@@ -42,10 +42,9 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     *rid = iter_->GetRID();
 
     // Reconstruct the tuple and check if it is deleted
-    bool deleted = ReconstructFor(exec_ctx_->GetTransactionManager(),  
-                                  exec_ctx_->GetTransaction(),      
-                                  &t, *rid, m, &plan_->OutputSchema());
-    
+    bool deleted = ReconstructFor(exec_ctx_->GetTransactionManager(), exec_ctx_->GetTransaction(), &t, *rid, m,
+                                  &plan_->OutputSchema());
+
     // If the tuple is deleted or the predicate is not satisfied, continue
     if (deleted) {
       continue;

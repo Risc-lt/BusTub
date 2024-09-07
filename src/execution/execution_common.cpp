@@ -12,8 +12,7 @@
 
 namespace bustub {
 
-auto ReconstructValuesFromTuple(const Schema *schema,  
-                                const Tuple &tuple) -> std::vector<Value> {
+auto ReconstructValuesFromTuple(const Schema *schema, const Tuple &tuple) -> std::vector<Value> {
   // Initialize the values vector with the values from the base tuple
   std::vector<Value> values(schema->GetColumnCount());
 
@@ -27,8 +26,7 @@ auto ReconstructValuesFromTuple(const Schema *schema,
   return values;
 }
 
-void ApplyModifications(std::vector<Value> &values,                  
-                     const Schema *schema, const UndoLog &log) {
+void ApplyModifications(std::vector<Value> &values, const Schema *schema, const UndoLog &log) {
   // Initialize the vectors to store the modified columns and their indices
   std::vector<Column> columns;
   std::vector<uint32_t> col_indices;
@@ -57,7 +55,7 @@ void ApplyModifications(std::vector<Value> &values,
 auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const TupleMeta &base_meta,
                       const std::vector<UndoLog> &undo_logs) -> std::optional<Tuple> {
   // if the base tuple is deleted or undo_logs are empty, return nullopt
-  if ( base_meta.is_deleted_ && undo_logs.empty()) {
+  if (base_meta.is_deleted_ && undo_logs.empty()) {
     return std::nullopt;
   }
 
@@ -90,13 +88,13 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
   // If the final tuple is deleted, return nullopt
   if (deleted) {
     return std::nullopt;
-  } 
-  
+  }
+
   return Tuple{std::move(values), schema};
 }
 
-auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
-                    RID rid, TupleMeta &meta, const Schema *schema) -> bool {
+auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple, RID rid, TupleMeta &meta,
+                    const Schema *schema) -> bool {
   // Get the read timestamp and transaction ID
   auto read_ts = txn->GetReadTs();
   auto txn_id = txn->GetTransactionId();
@@ -137,8 +135,7 @@ auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
   return true;
 }
 
-void GenerateDeleteLogSmart(TupleMeta &meta, Tuple *tuple, RID rid,         
-                            const TableInfo *table_info, Transaction *txn,  
+void GenerateDeleteLogSmart(TupleMeta &meta, Tuple *tuple, RID rid, const TableInfo *table_info, Transaction *txn,
                             TransactionManager *txn_mgr) {
   // If the tuple is not temporary, check if the timestamp is less than the transaction timestamp
   if (txn->GetTransactionTempTs() != meta.ts_) {
@@ -163,8 +160,7 @@ void GenerateDeleteLogSmart(TupleMeta &meta, Tuple *tuple, RID rid,
   table_info->table_->UpdateTupleMeta(meta, rid);
 }
 
-void GenerateDeleteLogInPage(TupleMeta &meta, Tuple *tuple, RID rid,         
-                             const TableInfo *table_info, Transaction *txn,  
+void GenerateDeleteLogInPage(TupleMeta &meta, Tuple *tuple, RID rid, const TableInfo *table_info, Transaction *txn,
                              TransactionManager *txn_mgr, TablePage *page) {
   if (txn->GetTransactionTempTs() != meta.ts_) {
     // Generate an undo log

@@ -22,9 +22,7 @@ class VersionChainIter {
   VersionChainIter(TransactionManager *txn_mgr, const RID rid) : txn_mgr_{txn_mgr} {
     auto link_opt = txn_mgr->GetUndoLink(rid);
     if (!link_opt.has_value()) {
-      throw Exception{fmt::format("Cannot get link from the rid{}/{}",  
-                                  rid.GetPageId(),                      
-                                  rid.GetSlotNum())};
+      throw Exception{fmt::format("Cannot get link from the rid{}/{}", rid.GetPageId(), rid.GetSlotNum())};
     }
     link_ = link_opt.value();
   }
@@ -97,12 +95,11 @@ void GenerateDeleteLogInPage(TupleMeta &meta, Tuple *tuple, RID rid,         // 
  */
 void InsertWithIndexUpdate();
 
-
 /**
  * @brief replace the changed values, use the info of log without checking is_deleted.
  */
 void ApplyModifications(std::vector<Value> &values,  //
-                     const Schema *schema, const UndoLog &log);
+                        const Schema *schema, const UndoLog &log);
 
 /**
  * @brief use a schema and its corrosponding tuple to construct values
@@ -120,8 +117,8 @@ auto ReconstructTuple(const Schema *schema, const Tuple &base_tuple, const Tuple
  * @brief rebuild tuple, iterate all log chain, return after its ts = read_ts.
  * @return the tuple is deleted or not.
  */
-auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple,
-                    RID rid, TupleMeta &meta, const Schema *schema) -> bool;
+auto ReconstructFor(TransactionManager *txn_mgr, Transaction *txn, Tuple *tuple, RID rid, TupleMeta &meta,
+                    const Schema *schema) -> bool;
 
 /**
  * @brief print the debug info of the transaction manager

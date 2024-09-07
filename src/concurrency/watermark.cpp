@@ -14,12 +14,12 @@ auto Watermark::AddTxn(timestamp_t read_ts) -> void {
 
 auto Watermark::RemoveTxn(timestamp_t read_ts) -> void {
   auto iter = current_reads_.find(read_ts);
-  if(iter == current_reads_.end()) {
+  if (iter == current_reads_.end()) {
     throw Exception("read ts not found");
   }
 
   iter->second--;
-  if(iter->second == 0) {
+  if (iter->second == 0) {
     current_reads_.erase(iter);
   }
 

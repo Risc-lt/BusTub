@@ -9,12 +9,12 @@
 // Copyright (c) 2015-19, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
+#include "execution/executors/index_scan_executor.h"
 #include <algorithm>
 #include <numeric>
 #include <vector>
 #include "execution/execution_common.h"
 #include "execution/expressions/column_value_expression.h"
-#include "execution/executors/index_scan_executor.h"
 
 namespace bustub {
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)

@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include <memory>
-#include <mutex>
 #include <vector>
 
 #include "concurrency/transaction_manager.h"
