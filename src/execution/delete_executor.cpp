@@ -24,6 +24,7 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
   table_info_ = catalog->GetTable(plan_->table_oid_);
   indices_ = catalog->GetTableIndexes(table_info_->name_);
   txn_ = exec_ctx_->GetTransaction();
+  txn_mgr_ = exec_ctx_->GetTransactionManager();
 }
 
 void DeleteExecutor::Init() { child_executor_->Init(); }
@@ -47,35 +48,13 @@ auto DeleteExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     return false;
   }
   int line_updated{0};
-  std::vector<Value> old_v(table_info_->schema_.GetColumnCount());
   auto txn = exec_ctx_->GetTransaction();
-  auto txn_mgr = exec_ctx_->GetTransactionManager();
   for (; child_executor_->Next(tuple, rid); line_updated++) {
-    for (uint32_t i = 0; i < table_info_->schema_.GetColumnCount(); i++) {
-      old_v[i] = tuple->GetValue(&table_info_->schema_, i);
-    }
-
     TupleMeta meta{table_info_->table_->GetTupleMeta(*rid)};
-    ConflictDetect(txn_mgr, txn, meta, *rid, "Delete");
-    // The ts is commited, or it update the one create/modified by itself.
-    if (txn->GetTransactionTempTs() != meta.ts_) {
-      // Which means we have to generate an undo log
-      UndoLog log;
-      log.is_deleted_ = meta.is_deleted_;
-      log.modified_fields_.resize(table_info_->schema_.GetColumnCount());
-      log.ts_ = meta.ts_;
-      auto link = txn_mgr->GetUndoLink(*rid);
-      if (link.has_value()) {
-        log.prev_version_ = *link;
-      }
-      txn_mgr->UpdateUndoLink(*rid, txn->AppendUndoLog(log));
-    }
-    meta.is_deleted_ = true;
-    meta.ts_ = txn->GetTransactionTempTs();
-    table_info_->table_->UpdateTupleMeta(meta, *rid);
+    ConflictDetect(txn_mgr_, txn, meta, *rid, "Delete");
+    GenerateDeleteLogSmart(meta, tuple, *rid, table_info_, txn_, txn_mgr_);
 
-    // And update indices.
-    DeleteIndices(old_v, *rid, txn_);
+    // Indices shall not be deleted.
     txn->AppendWriteSet(table_info_->oid_, *rid);
   }
   Value size{TypeId::INTEGER, line_updated};

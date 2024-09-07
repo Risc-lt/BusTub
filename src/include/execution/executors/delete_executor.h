@@ -77,5 +77,6 @@ class DeleteExecutor : public AbstractExecutor {
 
   /** The update transaction */
   Transaction *txn_;
+  TransactionManager *txn_mgr_;
 };
 }  // namespace bustub
